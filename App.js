@@ -1,20 +1,36 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import * as React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
+import Login from './assets/screens/Login';
+import Signup from './assets/screens/Singnup';
+import Signupwith from './assets/screens/Signupwith';
+import Home from './assets/screens/Home&Widget';
+import Profile from './assets/screens/MainProfile';
+import Settings from './assets/screens/Settings';
+import RealtimeR from './assets/screens/AboutScreen';
+import SavedR from './assets/screens/SavedRecords';
+import DeletedR from './assets/screens/DeletedRecords';
+
+const Stack = createNativeStackNavigator();
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Hi! This is Kheal one of the Smart Scare Crow app developer.</Text>
-      <StatusBar style="auto" />
-    </View>
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName="login">
+        
+        {/* Screens inside the app */}
+        <Stack.Screen name="login" component={Login} />
+        <Stack.Screen name="signup" component={Signup} />
+        <Stack.Screen name="signupw" component={Signupwith} />
+        <Stack.Screen name="home" component={Home} />
+        <Stack.Screen name="profile" component={Profile} />
+        <Stack.Screen name="settings" component={Settings} />
+        <Stack.Screen name="realtimer" component={RealtimeR} />
+        <Stack.Screen name="savedr" component={SavedR} />
+        <Stack.Screen name="deletedr" component={DeletedR} />
+
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
