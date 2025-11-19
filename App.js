@@ -3,12 +3,12 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import Login from './assets/screens/Login';
-import Signup from './assets/screens/Singnup';
+import Signup from './assets/screens/Signup';
 import Signupwith from './assets/screens/Signupwith';
 import Home from './assets/screens/Home&Widget';
 import Profile from './assets/screens/MainProfile';
 import Settings from './assets/screens/Settings';
-import RealtimeR from './assets/screens/AboutScreen';
+import RealtimeR from './assets/screens/Realtimerecord';
 import SavedR from './assets/screens/SavedRecords';
 import DeletedR from './assets/screens/DeletedRecords';
 
@@ -17,7 +17,11 @@ const Stack = createNativeStackNavigator();
 export default function App() {
   return (
     <NavigationContainer>
+<<<<<<< HEAD
       <Stack.Navigator initialRouteName="profile">
+=======
+      <Stack.Navigator screenOptions={{headerShown:false}} initialRouteName="login">
+>>>>>>> 8309002dedb5bb9da9b4958ba45e43af731fd389
         
         {/* Screens inside the app */}
         <Stack.Screen name="login" component={Login} />
