@@ -1,29 +1,40 @@
 {
   "expo": {
-    "name": "SmartScareCrow",
-    "slug": "SmartScareCrow",
+    "name": "SmartCrow",
+    "slug": "SmartCrow",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/SmartScareCrow.png",
+    "icon": "./assets/Picture1.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera",
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone",
+          "recordAudioAndroid": true
+        }
+      ]
+    ],
     "splash": {
-      "image": "./assets/SmartScareCrow.png",
+      "image": "./assets/Picture1.png",
+      "fontstyle": "Jim Nightshade",
       "resizeMode": "contain",
-      "backgroundColor": "#b12b2bff"
+      "backgroundColor": "#F9CBCB"
     },
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/SmartScareCrow.png",
-        "backgroundColor": "#b12b2bff"
+        "foregroundImage": "./assets/Picture1.png",
+        "backgroundColor": "#F9CBCB"
       },
       "edgeToEdgeEnabled": true
     },
     "web": {
-      "favicon": "./assets/SmartScareCrow.png"
+      "favicon": "./assets/Picture1.png"
     }
   }
 }
