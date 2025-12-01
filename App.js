@@ -1,36 +1,73 @@
-import * as React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-
-import Login from './assets/screens/Login';
-import Signup from './assets/screens/Signup';
-import Signupwith from './assets/screens/Signupwith';
-import Home from './assets/screens/Home&Widget';
-import Profile from './assets/screens/MainProfile';
-import Settings from './assets/screens/Settings';
-import RealtimeR from './assets/screens/Realtimerecord';
-import SavedR from './assets/screens/SavedRecords';
-import DeletedR from './assets/screens/DeletedRecords';
-
-const Stack = createNativeStackNavigator();
+import React, { useState } from "react";
+import { View, Text, Switch, StyleSheet, ScrollView } from "react-native";
 
 export default function App() {
-  return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{headerShown:false}} initialRouteName="login">
-        
-        {/* Screens inside the app */}
-        <Stack.Screen name="login" component={Login} />
-        <Stack.Screen name="signup" component={Signup} />
-        <Stack.Screen name="signupw" component={Signupwith} />
-        <Stack.Screen name="home" component={Home} />
-        <Stack.Screen name="profile" component={Profile} />
-        <Stack.Screen name="settings" component={Settings} />
-        <Stack.Screen name="realtimer" component={RealtimeR} />
-        <Stack.Screen name="savedr" component={SavedR} />
-        <Stack.Screen name="deletedr" component={DeletedR} />
+  const [notifications, setNotifications] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
 
-      </Stack.Navigator>
-    </NavigationContainer>
+  return (
+    <ScrollView style={styles.container}>
+      {/* ACCOUNT */}
+      <Text style={styles.sectionTitle}>Account</Text>
+      <View style={styles.item}>
+        <Text style={styles.itemText}>Profile</Text>
+      </View>
+      <View style={styles.item}>
+        <Text style={styles.itemText}>Change Password</Text>
+      </View>
+
+      {/* PREFERENCES */}
+      <Text style={styles.sectionTitle}>Preferences</Text>
+      <View style={styles.itemRow}>
+        <Text style={styles.itemText}>Notifications</Text>
+        <Switch value={notifications} onValueChange={setNotifications} />
+      </View>
+      <View style={styles.itemRow}>
+        <Text style={styles.itemText}>Dark Mode</Text>
+        <Switch value={darkMode} onValueChange={setDarkMode} />
+      </View>
+
+      {/* SUPPORT */}
+      <Text style={styles.sectionTitle}>Support</Text>
+      <View style={styles.item}>
+        <Text style={styles.itemText}>Help Center</Text>
+      </View>
+      <View style={styles.item}>
+        <Text style={styles.itemText}>Contact Support</Text>
+      </View>
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#fff"
+  },
+  sectionTitle: {
+    marginTop: 24,
+    marginLeft: 16,
+    marginBottom: 8,
+    fontWeight: "bold",
+    fontSize: 14,
+    color: "#666"
+  },
+  item: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderColor: "#eee"
+  },
+  itemRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderColor: "#eee",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+  itemText: {
+    fontSize: 16
+  }
+});
