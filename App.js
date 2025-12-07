@@ -17,9 +17,10 @@ const Stack = createNativeStackNavigator();
 export default function App() {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="login">
-        
-        {/* Screens inside the app */}
+      <Stack.Navigator 
+        screenOptions={{ headerShown: false }} 
+        initialRouteName="deletedr"
+      >
         <Stack.Screen name="login" component={Login} />
         <Stack.Screen name="signup" component={Signup} />
         <Stack.Screen name="signupw" component={Signupwith} />
@@ -29,7 +30,6 @@ export default function App() {
         <Stack.Screen name="realtimer" component={RealtimeR} />
         <Stack.Screen name="savedr" component={SavedR} />
         <Stack.Screen name="deletedr" component={DeletedR} />
-
       </Stack.Navigator>
     </NavigationContainer>
   );

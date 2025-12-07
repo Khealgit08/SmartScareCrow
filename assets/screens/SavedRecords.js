@@ -1,33 +1,57 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
-import { MaterialIcons, Ionicons } from "@expo/vector-icons";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
+import { Ionicons, Feather, MaterialIcons } from "@expo/vector-icons";
 
 export default function SavedR() {
   const savedData = [
-    { id: 1, filename: "FileName", datetime: "11/04/2025 | 10:12AM" },
-    { id: 2, filename: "FileName", datetime: "11/04/2025 | 10:13AM" },
-    { id: 3, filename: "FileName", datetime: "11/04/2025 | 10:14AM" },
+    { id: 1, filename: "Record 1" },
+    { id: 2, filename: "Record 2" },
+    { id: 3, filename: "Record 3" },
+    { id: 4, filename: "Record 4" },
+    { id: 5, filename: "Record 5" },
   ];
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Saved Records</Text>
+      {/* Profile Header */}
+      <View style={styles.profileSection}>
+        <Ionicons name="person-circle-outline" size={90} color="#000" />
+        <Text style={styles.username}>Username</Text>
+      </View>
 
+      {/* Section Title */}
+      <View style={styles.sectionRow}>
+        <Ionicons name="chevron-back" size={20} color="#000" />
+        <Text style={styles.sectionTitle}>Saved Records</Text>
+      </View>
+
+      <View style={styles.line} />
+
+      {/* Saved items list */}
       <ScrollView showsVerticalScrollIndicator={false}>
         {savedData.map((item) => (
           <View style={styles.card} key={item.id}>
-            <View>
-              <Text style={styles.filename}>{item.filename}</Text>
-              <Text style={styles.datetime}>{item.datetime}</Text>
-            </View>
+            <Feather
+              name="video"
+              size={20}
+              color="#000"
+              style={{ marginRight: 10 }}
+            />
+            <Text style={styles.filename}>{item.filename}</Text>
 
-            <View style={styles.iconRow}>
+            <View style={styles.actionRow}>
               <TouchableOpacity>
-                <Ionicons name="eye-outline" size={26} color="#000" />
+                <MaterialIcons name="delete" size={22} color="#E3342F" />
               </TouchableOpacity>
 
               <TouchableOpacity style={{ marginLeft: 15 }}>
-                <MaterialIcons name="delete" size={28} color="#E63946" />
+                <Ionicons name="share-social-outline" size={22} color="#34C759" />
               </TouchableOpacity>
             </View>
           </View>
@@ -38,31 +62,56 @@ export default function SavedR() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 20 },
-  header: {
-    fontSize: 24,
-    fontWeight: "700",
-    marginBottom: 15,
+  container: { flex: 1, backgroundColor: "#F6EDED", padding: 20 },
+
+  profileSection: {
+    alignItems: "center",
+    marginTop: 20,
+    marginBottom: 10,
   },
-  card: {
-    backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 12,
+  username: {
+    fontSize: 20,
+    fontWeight: "600",
+    marginTop: 5,
+    color: "#000",
+  },
+
+  sectionRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    elevation: 2,
+    alignItems: "center",
+    marginTop: 10,
   },
-  filename: {
-    fontSize: 16,
+  sectionTitle: {
+    fontSize: 14,
+    marginLeft: 5,
     fontWeight: "600",
   },
-  datetime: {
-    fontSize: 12,
-    color: "#777",
-    marginTop: 3,
+
+  line: {
+    borderBottomColor: "#000",
+    borderBottomWidth: 1,
+    marginVertical: 10,
+    width: "95%",
+    alignSelf: "center",
   },
-  iconRow: {
+
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+
+  filename: {
+    flex: 1,
+    fontWeight: "600",
+    fontSize: 13,
+  },
+
+  actionRow: {
     flexDirection: "row",
     alignItems: "center",
   },

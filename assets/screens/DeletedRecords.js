@@ -1,68 +1,129 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
-import { MaterialIcons, Ionicons } from "@expo/vector-icons";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
+import { Ionicons, Feather, MaterialIcons } from "@expo/vector-icons";
 
 export default function DeletedR() {
   const deletedData = [
-    { id: 1, filename: "FileName", datetime: "11/02/2025 | 09:45AM" },
-    { id: 2, filename: "FileName", datetime: "11/02/2025 | 09:50AM" },
+    { id: 1, filename: "Record 1" },
+    { id: 2, filename: "Record 2" },
+    { id: 3, filename: "Record 3" },
   ];
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Deleted Records</Text>
+      {/* Profile Header */}
+      <View style={styles.profileSection}>
+        <Ionicons name="person-circle-outline" size={90} color="#000" />
+        <Text style={styles.username}>Username</Text>
+      </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      {/* Section Title */}
+      <View style={styles.sectionRow}>
+        <Ionicons name="chevron-back" size={20} color="#000" />
+        <Text style={styles.sectionTitle}>Recently Deleted</Text>
+      </View>
+
+      <View style={styles.line} />
+
+      {/* Deleted items */}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 80 }} // BIGGER lift
+      >
         {deletedData.map((item) => (
           <View style={styles.card} key={item.id}>
-            <View>
-              <Text style={styles.filename}>{item.filename}</Text>
-              <Text style={styles.datetime}>{item.datetime}</Text>
-            </View>
+            <Feather
+              name="video"
+              size={20}
+              color="#000"
+              style={{ marginRight: 10 }}
+            />
 
-            <View style={styles.iconRow}>
-              <TouchableOpacity>
-                <MaterialIcons name="restore" size={28} color="#2ECC71" />
-              </TouchableOpacity>
+            <Text style={styles.filename}>{item.filename}</Text>
 
-              <TouchableOpacity style={{ marginLeft: 15 }}>
-                <MaterialIcons name="delete-forever" size={28} color="#E63946" />
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity>
+              <MaterialIcons name="restore" size={22} color="#555" />
+            </TouchableOpacity>
           </View>
         ))}
       </ScrollView>
+
+      {/* Delete all permanently button */}
+      <TouchableOpacity style={styles.deleteAllBtn}>
+        <Text style={styles.deleteAllText}>DELETE ALL PERMANENTLY</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 20 },
-  header: {
-    fontSize: 24,
-    fontWeight: "700",
-    marginBottom: 15,
+  container: { flex: 1, backgroundColor: "#F6EDED", padding: 20 },
+
+  profileSection: {
+    alignItems: "center",
+    marginTop: 20,
+    marginBottom: 10,
   },
-  card: {
-    backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    elevation: 2,
-  },
-  filename: {
-    fontSize: 16,
+  username: {
+    fontSize: 20,
     fontWeight: "600",
+    marginTop: 5,
+    color: "#000",
   },
-  datetime: {
-    fontSize: 12,
-    color: "#777",
-    marginTop: 3,
-  },
-  iconRow: {
+
+  sectionRow: {
     flexDirection: "row",
     alignItems: "center",
+    marginTop: 10,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    marginLeft: 5,
+    fontWeight: "600",
+  },
+
+  line: {
+    borderBottomColor: "#000",
+    borderBottomWidth: 1,
+    marginVertical: 10,
+    width: "95%",
+    alignSelf: "center",
+  },
+
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+
+  filename: {
+    flex: 1,
+    fontWeight: "600",
+    fontSize: 13,
+  },
+
+  deleteAllBtn: {
+    backgroundColor: "#FFE5E5",
+    paddingVertical: 10,
+    paddingHorizontal: 25,
+    borderRadius: 20,
+    alignSelf: "center",
+    marginBottom: 30, // lifted higher
+  },
+
+  deleteAllText: {
+    fontSize: 12,
+    color: "#B02222",
+    fontWeight: "700",
   },
 });
