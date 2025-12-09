@@ -32,10 +32,10 @@ const MainProfileScreen = () => {
       {/* Records Icons Section */}
       <View style={styles.recordsSection}>
         {/* Saved Records Button */}
-        <View style={styles.recordItem}>
+        <TouchableOpacity style={styles.recordItem} onPress={() => navigation.navigate('savedr')}>
           <MaterialCommunityIcons name="cloud-check-outline" size={50} color="black" />
           <Text style={styles.recordText}>SAVED RECORDS</Text>
-        </View>
+        </TouchableOpacity>
 
         {/* Recently Deleted Records Button - Navigates to the next screen */}
         <TouchableOpacity 

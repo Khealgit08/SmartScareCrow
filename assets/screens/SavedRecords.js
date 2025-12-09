@@ -7,8 +7,11 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { Ionicons, Feather, MaterialIcons } from "@expo/vector-icons";
+import { useNavigation } from '@react-navigation/native';
 
 export default function SavedR() {
+  const navigation = useNavigation();
+
   const savedData = [
     { id: 1, filename: "Record 1" },
     { id: 2, filename: "Record 2" },
@@ -26,10 +29,10 @@ export default function SavedR() {
       </View>
 
       {/* Section Title */}
-      <View style={styles.sectionRow}>
+      <TouchableOpacity style={styles.sectionRow} onPress={() => navigation.navigate('profile')}>
         <Ionicons name="chevron-back" size={20} color="#000" />
         <Text style={styles.sectionTitle}>Saved Records</Text>
-      </View>
+      </TouchableOpacity>
 
       <View style={styles.line} />
 
