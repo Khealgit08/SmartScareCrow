@@ -15,7 +15,7 @@ export default function Login({ navigation }) {
     // TODO: Add Firebase or backend login function
     console.log("Logging in with:", email, password);
 
-    navigation.navigate("home");
+    navigation.navigate("profile");
   };
 
   return (
