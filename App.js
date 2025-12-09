@@ -18,9 +18,7 @@ export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator 
-        screenOptions={{ headerShown: false }} 
-        initialRouteName="deletedr"
-      >
+        screenOptions={{ headerShown: false }} initialRouteName="login">
         <Stack.Screen name="login" component={Login} />
         <Stack.Screen name="signup" component={Signup} />
         <Stack.Screen name="signupw" component={Signupwith} />
