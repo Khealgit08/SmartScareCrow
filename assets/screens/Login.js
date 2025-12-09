@@ -7,9 +7,11 @@ import {
   StyleSheet,
   Image
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 
 export default function AuthScreen() {
+  const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState("login");
 
   return (
@@ -82,7 +84,10 @@ export default function AuthScreen() {
         </TouchableOpacity>
 
         {/* Main Button */}
-        <TouchableOpacity style={styles.mainButton}>
+        <TouchableOpacity 
+          style={styles.mainButton}
+          onPress={() => navigation.navigate("home")}
+        >
           <Text style={styles.mainButtonText}>
             {activeTab === "login" ? "Log In" : "Sign Up"}
           </Text>
