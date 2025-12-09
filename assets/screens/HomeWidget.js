@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet, Image, TouchableOpacity, Animated, PanResponder, Alert, ScrollView } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Location from "expo-location";
 import { fetchWeather } from "../services/weatherService";
@@ -9,6 +10,7 @@ import menuClosedImg from "../image/menu.png";
 import menuExpandedImg from "../image/menuexpand.png";
 
 export default function Home() {
+  const navigation = useNavigation();
   const [permission, requestPermission] = useCameraPermissions();
   const [widgetsVisible, setWidgetsVisible] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false); // State to control dropdown visibility
@@ -155,9 +157,32 @@ export default function Home() {
   // Handle menu option press
   const handleOptionPress = (option) => {
     setActiveOption(option);
-    console.log(`${option} pressed`); // Just for testing, replace with navigation logic later
-    // Here you would typically navigate to the appropriate screen
-    // For now, we just highlight the selected option
+    
+    // Navigate based on option
+    switch (option) {
+      case "Home":
+        navigation.navigate("home");
+        break;
+      case "Records":
+        navigation.navigate("realtimer");
+        break;
+      case "Profile":
+        navigation.navigate("profile");
+        break;
+      case "Settings":
+        navigation.navigate("settings");
+        break;
+      default:
+        break;
+    }
+    
+    // Close menu after selection
+    setMenuOpen(false);
+    Animated.timing(menuAnim, {
+      toValue: 0,
+      duration: 250,
+      useNativeDriver: false,
+    }).start();
   };
 
   // Drag up gesture
