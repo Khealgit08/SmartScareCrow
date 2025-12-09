@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     top: 50,
     left: 15,
     background: 'linear-gradient(180deg, rgba(127, 34, 34, 1) 0%, rgba(229, 62, 62, 1) 100%)',
-    // The image has a background behind the icon, let's simulate it
+    // I tried putting a gradient background to match the figma, but it wouldn't show up.
     padding: 5, 
     borderRadius: 5,
     borderWidth: 1,
