@@ -1,87 +1,193 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Image
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
-export default function Login({ navigation }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-
-  const handleLogin = () => {
-    if (!email || !password) {
-      alert("Please fill all fields");
-      return;
-    }
-
-    // TODO: Add Firebase or backend login function
-    console.log("Logging in with:", email, password);
-
-    navigation.navigate("home");
-  };
+export default function AuthScreen() {
+  const [activeTab, setActiveTab] = useState("login");
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Welcome</Text>
+    <LinearGradient colors={["#ffffff", "#f8cfd4"]} style={styles.container}>
+      <View style={styles.card}>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
+        {/* Toggle Bar */}
+        <View style={styles.toggleWrapper}>
+          
+          {/* LOG IN */}
+          <TouchableOpacity
+            style={[
+              styles.toggleButton,
+              activeTab === "login" ? styles.active : styles.inactive
+            ]}
+            onPress={() => setActiveTab("login")}
+          >
+            <Text
+              style={[
+                styles.toggleText,
+                activeTab === "login" ? styles.activeText : styles.inactiveRed
+              ]}
+            >
+              LOG IN
+            </Text>
+          </TouchableOpacity>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
+          {/* SIGN UP */}
+          <TouchableOpacity
+            style={[
+              styles.toggleButton,
+              activeTab === "signup" ? styles.active : styles.inactive
+            ]}
+            onPress={() => setActiveTab("signup")}
+          >
+            <Text
+              style={[
+                styles.toggleText,
+                activeTab === "signup" ? styles.activeText : styles.inactiveRed
+              ]}
+            >
+              SIGN UP
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.btnText}>Login</Text>
-      </TouchableOpacity>
+        {/* Inputs */}
+        <TextInput
+          placeholder="Username"
+          style={styles.input}
+          placeholderTextColor="#999"
+        />
 
-      <TouchableOpacity onPress={() => navigation.navigate("signup")}>
-        <Text style={styles.link}>Don’t have an account? Sign up</Text>
-      </TouchableOpacity>
-    </View>
+        <TextInput
+          placeholder="Password"
+          secureTextEntry
+          style={styles.input}
+          placeholderTextColor="#999"
+        />
+
+        {/* Google Login Button */}
+        <TouchableOpacity style={styles.googleButton}>
+          <Image
+            source={{
+              uri: "https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg",
+            }}
+            style={styles.googleIcon}
+          />
+          <Text style={styles.googleText}>Continue with Google</Text>
+        </TouchableOpacity>
+
+        {/* Main Button */}
+        <TouchableOpacity style={styles.mainButton}>
+          <Text style={styles.mainButtonText}>
+            {activeTab === "login" ? "Log In" : "Sign Up"}
+          </Text>
+        </TouchableOpacity>
+
+      </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  card: {
+    width: 270,
     padding: 20,
+    borderRadius: 16,
+    backgroundColor: "#f1eaea",
+    elevation: 6,
+  },
+
+  /* Toggle pill */
+  toggleWrapper: {
+    flexDirection: "row",
+    borderRadius: 30,
+    overflow: "hidden",
+    backgroundColor: "white",
+    marginBottom: 20,
+  },
+
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  active: {
+    backgroundColor: "black",
+  },
+
+  inactive: {
+    backgroundColor: "white",
+  },
+
+  toggleText: {
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+
+  activeText: {
+    color: "white",
+  },
+
+  inactiveRed: {
+    color: "#d94d48",
+  },
+
+  /* Inputs */
+  input: {
+    backgroundColor: "white",
+    borderRadius: 6,
+    padding: 10,
+    marginBottom: 12,
+    fontSize: 14,
+  },
+
+  /* Google Button */
+  googleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "white",
+    paddingVertical: 10,
+    borderRadius: 6,
+    marginBottom: 15,
     justifyContent: "center",
   },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    marginBottom: 40,
-    alignSelf: "center"
+
+  googleIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 10,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 15
+
+  googleText: {
+    fontSize: 14,
+    color: "#444",
+    fontWeight: "600",
   },
-  button: {
-    backgroundColor: "#4A90E2",
-    padding: 15,
-    borderRadius: 8,
+
+  /* Main button */
+  mainButton: {
+    backgroundColor: "#fafafa",
+    paddingVertical: 8,
+    borderRadius: 6,
     alignItems: "center",
-    marginBottom: 15
+    marginTop: 10,
   },
-  btnText: {
-    color: "white",
-    fontWeight: "bold"
+
+  mainButtonText: {
+    fontWeight: "bold",
+    color: "#444",
   },
-  link: {
-    color: "#4A90E2",
-    textAlign: "center",
-    marginTop: 10
-  }
 });
