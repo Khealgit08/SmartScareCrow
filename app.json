@@ -4,7 +4,7 @@
     "slug": "SmartCrow",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/Picture1.png",
+    "icon": "./assets/image/Picture1.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "plugins": [
@@ -18,23 +18,36 @@
       ]
     ],
     "splash": {
-      "image": "./assets/Picture1.png",
-      "fontstyle": "Jim Nightshade",
+      "image": "./assets/image/Picture1.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F9CBCB"
+      "backgroundColor": "#E53E3E" // Use the first gradient color as a solid background
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera",
+        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone",
+        "NSLocationWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to access your location"
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/Picture1.png",
-        "backgroundColor": "#F9CBCB"
+        "foregroundImage": "./assets/image/Picture1.png",
+        "backgroundColor": "#E53E3E"
       },
+      "splash": {
+        "image": "./assets/image/Picture1.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#E53E3E"
+      },
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ],
       "edgeToEdgeEnabled": true
     },
     "web": {
-      "favicon": "./assets/Picture1.png"
+      "favicon": "./assets/image/Picture1.png"
     }
   }
 }
