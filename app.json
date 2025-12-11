@@ -15,12 +15,13 @@
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone",
           "recordAudioAndroid": true
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "splash": {
       "image": "./assets/image/Picture1.png",
       "resizeMode": "contain",
-      "backgroundColor": "#E53E3E" // Use the first gradient color as a solid background
+      "backgroundColor": "#E53E3E"
     },
     "ios": {
       "supportsTablet": true,

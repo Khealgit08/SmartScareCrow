@@ -1,0 +1,331 @@
+import React, { useState } from "react";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Image, Pressable, Alert, Platform } from "react-native";
+import * as Sharing from 'expo-sharing';
+import { Ionicons, Feather, MaterialIcons } from "@expo/vector-icons";
+import { useNavigation, NavigationProp } from "@react-navigation/native";
+import MenuAndWidgetPanel from "../components/MenuAndWidgetPanel";
+import { useRecording, CapturedRecord } from "../../contexts/RecordingContext";
+import type { RootStackParamList } from "../../navigation.types";
+
+type SavedRecordsNavigationProp = NavigationProp<RootStackParamList, "savedr">;
+
+export default function SavedR(): React.ReactElement {
+  const navigation = useNavigation<SavedRecordsNavigationProp>();
+  const { savedRecords, moveSavedToDeleted } = useRecording();
+  const [selectedImage, setSelectedImage] = useState<CapturedRecord | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const handleCardPress = (item: CapturedRecord): void => {
+    setSelectedImage(item);
+    setModalVisible(true);
+  };
+
+  const closeModal = (): void => {
+    setModalVisible(false);
+    setSelectedImage(null);
+  };
+
+  const handleDelete = (item: CapturedRecord): void => {
+    // Move from saved to deleted records
+    moveSavedToDeleted(item.id);
+  };
+
+  const handleShare = async (item: CapturedRecord): Promise<void> => {
+    try {
+      // Check if sharing is available
+      const isAvailable = await Sharing.isAvailableAsync();
+      
+      if (!isAvailable) {
+        Alert.alert('Error', 'Sharing is not available on this device');
+        return;
+      }
+
+      // If there's an image, share it
+      if (item.imageUri) {
+        await Sharing.shareAsync(item.imageUri, {
+          dialogTitle: `${item.objectType} - ${item.dateTime}`,
+        });
+      } else {
+        Alert.alert('No Image', 'This record has no image to share');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to share record');
+      console.error('Share error:', error);
+    }
+  };
+
+  return (
+    <MenuAndWidgetPanel>
+      <View style={styles.container}>
+        {/* Profile Header */}
+        <View style={styles.profileSection}>
+          <Ionicons name="person-circle-outline" size={90} color="#000" />
+          <Text style={styles.username}>Username</Text>
+        </View>
+
+        {/* Section Title */}
+        <TouchableOpacity
+          style={styles.sectionRow}
+          onPress={() => navigation.navigate("profile")}
+        >
+          <Ionicons name="chevron-back" size={20} color="#000" />
+          <Text style={styles.sectionTitle}>Saved Records</Text>
+        </TouchableOpacity>
+
+        <View style={styles.line} />
+
+        {/* Saved items list */}
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {savedRecords.length > 0 ? (
+            savedRecords.map((item, index) => (
+              <TouchableOpacity 
+                style={styles.card}
+                key={`saved-${item.id}-${index}`}
+                onPress={() => handleCardPress(item)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.cardContent}>
+                  <MaterialIcons name="image" size={20} color="#b36d75" style={{ marginRight: 10 }} />
+                  <View style={styles.info}>
+                    <Text style={styles.filename}>{item.objectType}</Text>
+                    <Text style={styles.timestamp}>{item.dateTime}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.actionRow}>
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleDelete(item);
+                    }}
+                  >
+                    <MaterialIcons name="delete" size={22} color="#E3342F" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={{ marginLeft: 15 }}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleShare(item);
+                    }}
+                  >
+                    <Ionicons
+                      name="share-social-outline"
+                      size={22}
+                      color="#34C759"
+                    />
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No saved records yet</Text>
+              <Text style={styles.emptySubtext}>Save detections from Real-time Records</Text>
+            </View>
+          )}
+        </ScrollView>
+
+        {/* Image Preview Modal */}
+        <Modal
+          visible={modalVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={closeModal}
+        >
+          <Pressable 
+            style={styles.modalOverlay}
+            onPress={closeModal}
+          >
+            <View style={styles.modalContent}>
+              <View style={styles.imagePreviewContainer}>
+                {selectedImage?.imageUri ? (
+                  <Image 
+                    source={{ uri: selectedImage.imageUri }}
+                    style={styles.previewImage}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View style={styles.placeholderImage}>
+                    <MaterialIcons name="image" size={80} color="#b36d75" />
+                    <Text style={styles.placeholderText}>No image captured</Text>
+                  </View>
+                )}
+                <View style={styles.imageInfo}>
+                  <Text style={styles.imageInfoTitle}>{selectedImage?.objectType}</Text>
+                  <Text style={styles.imageInfoTime}>{selectedImage?.dateTime}</Text>
+                </View>
+              </View>
+            </View>
+          </Pressable>
+        </Modal>
+      </View>
+    </MenuAndWidgetPanel>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "rgba(246, 237, 237, 0.85)",
+    padding: 20,
+  },
+
+  profileSection: {
+    alignItems: "center",
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  username: {
+    fontSize: 20,
+    fontWeight: "600",
+    marginTop: 5,
+    color: "#000",
+    fontFamily: "AlegreyaSC",
+  },
+
+  sectionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    marginLeft: 5,
+    fontWeight: "600",
+    fontFamily: "AlegreyaSC",
+  },
+
+  line: {
+    borderBottomColor: "#000",
+    borderBottomWidth: 1,
+    marginVertical: 10,
+    width: "95%",
+    alignSelf: "center",
+  },
+
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+
+  cardContent: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  info: {
+    flex: 1,
+  },
+
+  filename: {
+    flex: 1,
+    fontWeight: "600",
+    fontSize: 13,
+    color: "#2d2d2d",
+    fontFamily: "AlegreyaSC",
+  },
+
+  timestamp: {
+    fontSize: 12,
+    color: "#8a8a8a",
+    marginTop: 4,
+    fontFamily: "AlegreyaSC",
+  },
+
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: 80,
+  },
+
+  emptyText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#999",
+    fontFamily: "AlegreyaSC",
+  },
+
+  emptySubtext: {
+    fontSize: 14,
+    color: "#bbb",
+    marginTop: 8,
+    fontFamily: "AlegreyaSC",
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.85)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  modalContent: {
+    width: "90%",
+    maxWidth: 500,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    overflow: "hidden",
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+
+  imagePreviewContainer: {
+    width: "100%",
+  },
+
+  previewImage: {
+    width: "100%",
+    height: 400,
+    backgroundColor: "#f0f0f0",
+  },
+
+  placeholderImage: {
+    width: "100%",
+    height: 400,
+    backgroundColor: "#f0f0f0",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  placeholderText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#999",
+    fontFamily: "AlegreyaSC",
+  },
+
+  imageInfo: {
+    padding: 16,
+    backgroundColor: "#fff",
+  },
+
+  imageInfoTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#2d2d2d",
+    marginBottom: 6,
+    fontFamily: "AlegreyaSC",
+  },
+
+  imageInfoTime: {
+    fontSize: 14,
+    color: "#8a8a8a",
+    fontFamily: "AlegreyaSC",
+  },
+});

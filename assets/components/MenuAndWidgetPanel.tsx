@@ -1,51 +1,141 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, Image, TouchableOpacity, Animated, PanResponder, Alert, ScrollView } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import { CameraView, useCameraPermissions } from "expo-camera";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  Animated,
+  PanResponder,
+  Alert,
+  ScrollView,
+  ImageSourcePropType,
+} from "react-native";
+import { useNavigation, NavigationProp } from "@react-navigation/native";
 import * as Location from "expo-location";
 import { fetchWeather } from "../services/weatherService";
+import { useDetection } from "../../contexts/DetectionContext";
+import { useRecording, CapturedRecord } from "../../contexts/RecordingContext";
+import type { RootStackParamList } from "../../navigation.types";
 
 import arrowup from "../image/arrow-up.png";
 import menuClosedImg from "../image/menu.png";
 import menuExpandedImg from "../image/menuexpand.png";
 
-export default function Home() {
-  const navigation = useNavigation();
-  const [permission, requestPermission] = useCameraPermissions();
-  const [widgetsVisible, setWidgetsVisible] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false); // State to control dropdown visibility
-  const [activeOption, setActiveOption] = useState(null); // State to track highlighted option
-  const [locationText, setLocationText] = useState("My Location");
-  const [locationLoading, setLocationLoading] = useState(false);
-  const [weatherCondition, setWeatherCondition] = useState("Sunny Morning");
-  const [weatherIcon, setWeatherIcon] = useState(require('../image/sunnyday.png'));
-  const [currentCoords, setCurrentCoords] = useState(null);
-  const [weatherLoading, setWeatherLoading] = useState(false);
-  const [temperatureC, setTemperatureC] = useState(null);
-  const [humidity, setHumidity] = useState(null);
-  const [windKph, setWindKph] = useState(null);
-  const [soilMoisture, setSoilMoisture] = useState(null);
-  const [soilLoading, setSoilLoading] = useState(false);
+type MenuNavigationProp = NavigationProp<RootStackParamList>;
+
+interface Coordinates {
+  latitude: number;
+  longitude: number;
+}
+
+interface MenuAndWidgetPanelProps {
+  children: React.ReactNode;
+}
+
+// Notification Banner Component (separate to use hooks properly)
+interface NotificationBannerProps {
+  notification: CapturedRecord;
+  onRemove: (id: string) => void;
+  onPress: () => void;
+}
+
+const NotificationBanner: React.FC<NotificationBannerProps> = ({ notification, onRemove, onPress }) => {
+  const panX = useRef(new Animated.Value(0)).current;
+  
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gesture) => {
+        return Math.abs(gesture.dx) > 10;
+      },
+      onPanResponderMove: (_, gesture) => {
+        if (gesture.dx > 0) {
+          panX.setValue(gesture.dx);
+        }
+      },
+      onPanResponderRelease: (_, gesture) => {
+        if (gesture.dx > 100) {
+          // Swipe right - dismiss without navigation
+          Animated.timing(panX, {
+            toValue: 300,
+            duration: 200,
+            useNativeDriver: true,
+          }).start(() => {
+            onRemove(notification.id);
+          });
+        } else {
+          // Snap back
+          Animated.spring(panX, {
+            toValue: 0,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
+  
+  return (
+    <Animated.View
+      style={[
+        { transform: [{ translateX: panX }] },
+      ]}
+      {...panResponder.panHandlers}
+    >
+      <TouchableOpacity 
+        style={[styles.notif, styles.notifActive]}
+        onPress={onPress}
+      >
+        <Text style={styles.notifLabel}>📸 {notification.objectType}</Text>
+        <Text style={styles.notifTime}>{notification.timestamp}</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
+export default function MenuAndWidgetPanel({
+  children,
+}: MenuAndWidgetPanelProps): React.ReactElement {
+  const navigation = useNavigation<MenuNavigationProp>();
+  const { riskLevel, riskCondition, riskColor } = useDetection(); // Global detection state
+  const { notifications, removeNotification } = useRecording(); // Recording notifications
+  const [widgetsVisible, setWidgetsVisible] = useState<boolean>(false);
+  const [menuOpen, setMenuOpen] = useState<boolean>(false);
+  const [activeOption, setActiveOption] = useState<string | null>(null);
+  const [locationText, setLocationText] = useState<string>("My Location");
+  const [locationLoading, setLocationLoading] = useState<boolean>(false);
+  const [weatherCondition, setWeatherCondition] = useState<string>(
+    "Sunny Morning"
+  );
+  const [weatherIcon, setWeatherIcon] = useState<ImageSourcePropType>(
+    require("../image/sunnyday.png")
+  );
+  const [currentCoords, setCurrentCoords] = useState<Coordinates | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState<boolean>(false);
+  const [temperatureC, setTemperatureC] = useState<number | null>(null);
+  const [humidity, setHumidity] = useState<number | null>(null);
+  const [windKph, setWindKph] = useState<number | null>(null);
+  const [soilMoisture, setSoilMoisture] = useState<number | null>(null);
+  const [soilLoading, setSoilLoading] = useState<boolean>(false);
 
   const slideAnim = useRef(new Animated.Value(0)).current;
-  const menuAnim = useRef(new Animated.Value(0)).current; // 0 = closed, 1 = open
+  const menuAnim = useRef(new Animated.Value(0)).current;
   const EXPANDED_WIDTH = 150;
-  const CLOSED_WIDTH = EXPANDED_WIDTH * 0.50; // closed = 35% of expanded
+  const CLOSED_WIDTH = EXPANDED_WIDTH * 0.5;
   const OPTION_HEIGHT = 44;
 
-  useEffect(() => {
-    if (permission?.granted === false) {
-      requestPermission();
-    }
-  }, [permission, requestPermission]);
-
-  // Update weather data
-  const updateWeather = async (latitude, longitude) => {
+  const updateWeather = async (latitude: number, longitude: number): Promise<void> => {
     try {
       setWeatherLoading(true);
-      const { condition, icon, temperatureC: temp, humidity: hum, windKph: wind } = await fetchWeather(latitude, longitude);
+      const {
+        condition,
+        icon,
+        temperatureC: temp,
+        humidity: hum,
+        windKph: wind,
+      } = await fetchWeather(latitude, longitude);
       if (condition) setWeatherCondition(condition);
-      if (icon) setWeatherIcon(icon);
+      if (icon) setWeatherIcon(icon as unknown as ImageSourcePropType);
       if (temp !== undefined) setTemperatureC(temp);
       if (hum !== undefined) setHumidity(hum);
       if (wind !== undefined) setWindKph(wind);
@@ -56,32 +146,36 @@ export default function Home() {
     }
   };
 
-  // Handle weather refresh
-  const handleWeatherPress = async () => {
+  const handleWeatherPress = async (): Promise<void> => {
     if (currentCoords) {
       await updateWeather(currentCoords.latitude, currentCoords.longitude);
     } else {
-      Alert.alert("No Location", "Please set your location first to get weather updates.");
+      Alert.alert(
+        "No Location",
+        "Please set your location first to get weather updates."
+      );
     }
   };
 
-  // Simulate soil moisture based on temperature and humidity
-  const computeSoilMoisture = (temp, hum) => {
+  const computeSoilMoisture = (temp: number | null, hum: number | null): number => {
     if (temp == null || hum == null) {
-      return Math.round(45 + Math.random() * 20); // fallback 45-65%
+      return Math.round(45 + Math.random() * 20);
     }
-    const humidityFactor = hum * 0.6; // humidity drives most
-    const tempDelta = 22 - temp; // closer to 22C keeps moisture higher
-    const tempFactor = Math.max(-20, Math.min(20, tempDelta * 2)); // clamp influence
+    const humidityFactor = hum * 0.6;
+    const tempDelta = 22 - temp;
+    const tempFactor = Math.max(-20, Math.min(20, tempDelta * 2));
     const base = humidityFactor + tempFactor;
-    const noise = (Math.random() - 0.5) * 6; // small jitter +/-3
+    const noise = (Math.random() - 0.5) * 6;
     const value = Math.max(5, Math.min(95, base + noise));
     return Math.round(value);
   };
 
-  const handleSoilPress = async () => {
+  const handleSoilPress = async (): Promise<void> => {
     if (!currentCoords) {
-      Alert.alert("No Location", "Please set your location first to simulate soil moisture.");
+      Alert.alert(
+        "No Location",
+        "Please set your location first to simulate soil moisture."
+      );
       return;
     }
     try {
@@ -98,42 +192,36 @@ export default function Home() {
     }
   };
 
-  // Handle location request
-  const handleLocationPress = async () => {
+  const handleLocationPress = async (): Promise<void> => {
     try {
       setLocationLoading(true);
-      
-      // Request location permission
       const { status } = await Location.requestForegroundPermissionsAsync();
-      
       if (status !== "granted") {
-        Alert.alert("Permission Denied", "Location permission is required to access your location.");
+        Alert.alert(
+          "Permission Denied",
+          "Location permission is required to access your location."
+        );
         setLocationLoading(false);
         return;
       }
-
-      // Get current location
       const location = await Location.getCurrentPositionAsync({});
       const { latitude, longitude } = location.coords;
-
-      // Reverse geocoding to get address
       const addresses = await Location.reverseGeocodeAsync({
         latitude,
         longitude,
       });
-
       if (addresses && addresses.length > 0) {
         const address = addresses[0];
-        const fullAddress = `${address.street || ''} ${address.city || ''} ${address.region || ''}`.trim();
+        const fullAddress = `${address.street || ""} ${address.city || ""} ${
+          address.region || ""
+        }`.trim();
         setLocationText(fullAddress || "Location Found");
       } else {
-        setLocationText(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+        setLocationText(
+          `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
+        );
       }
-
-      // Store coordinates for weather updates
       setCurrentCoords({ latitude, longitude });
-
-      // Fetch weather for this location
       await updateWeather(latitude, longitude);
     } catch (error) {
       console.error("Location error:", error);
@@ -143,8 +231,7 @@ export default function Home() {
     }
   };
 
-  // Toggle dropdown menu visibility
-  const toggleDropdown = () => {
+  const toggleDropdown = (): void => {
     const toValue = menuOpen ? 0 : 1;
     Animated.timing(menuAnim, {
       toValue,
@@ -154,11 +241,9 @@ export default function Home() {
     setMenuOpen(!menuOpen);
   };
 
-  // Handle menu option press
-  const handleOptionPress = (option) => {
+  const handleOptionPress = (option: string): void => {
     setActiveOption(option);
-    
-    // Navigate based on option
+
     switch (option) {
       case "Home":
         navigation.navigate("home");
@@ -175,8 +260,7 @@ export default function Home() {
       default:
         break;
     }
-    
-    // Close menu after selection
+
     setMenuOpen(false);
     Animated.timing(menuAnim, {
       toValue: 0,
@@ -185,7 +269,6 @@ export default function Home() {
     }).start();
   };
 
-  // Drag up gesture
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy < -20,
@@ -195,7 +278,7 @@ export default function Home() {
     })
   ).current;
 
-  const toggleWidgets = () => {
+  const toggleWidgets = (): void => {
     Animated.timing(slideAnim, {
       toValue: widgetsVisible ? 0 : 1,
       duration: 300,
@@ -211,50 +294,70 @@ export default function Home() {
 
   const arrowRotation = slideAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['0deg', '180deg'],
+    outputRange: ["0deg", "180deg"],
   });
 
   const menuOptions = ["Home", "Records", "Profile", "Settings"];
 
   return (
     <View style={styles.container}>
-      {/* LIVE Camera Background */}
-      <CameraView style={styles.camera} facing="back" />
+      {children}
 
-      {/* Collapsible Menu - hamburger + expanding options in one container */}
+      {/* Collapsible Menu */}
       <Animated.View
         style={[
           styles.menuContainer,
           {
-            // animate height
-            height: menuAnim.interpolate({ inputRange: [0, 1], outputRange: [60, 60 + menuOptions.length * OPTION_HEIGHT] }),
-            // animate width from closed (35%) to expanded
-            width: menuAnim.interpolate({ inputRange: [0, 1], outputRange: [CLOSED_WIDTH, EXPANDED_WIDTH] }),
-            // animate right-side corner radii between closed (50) and open (10)
-            borderTopRightRadius: menuAnim.interpolate({ inputRange: [0, 1], outputRange: [50, 10] }),
-            borderBottomRightRadius: menuAnim.interpolate({ inputRange: [0, 1], outputRange: [50, 10] }),
+            height: menuAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [60, 60 + menuOptions.length * OPTION_HEIGHT],
+            }),
+            width: menuAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [CLOSED_WIDTH, EXPANDED_WIDTH],
+            }),
+            borderTopRightRadius: menuAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [50, 10],
+            }),
+            borderBottomRightRadius: menuAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [50, 10],
+            }),
           },
         ]}
       >
-        <TouchableOpacity style={styles.menuHeader} onPress={toggleDropdown} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.menuHeader}
+          onPress={toggleDropdown}
+          activeOpacity={0.8}
+        >
           <Image
             source={menuOpen ? menuExpandedImg : menuClosedImg}
-            style={menuOpen ? styles.burgerIconExpanded : styles.burgerIconClosed}
+            style={
+              menuOpen ? styles.burgerIconExpanded : styles.burgerIconClosed
+            }
             resizeMode="contain"
           />
         </TouchableOpacity>
 
         <Animated.View
           style={{
-            overflow: 'hidden',
-            height: menuAnim.interpolate({ inputRange: [0, 1], outputRange: [0, menuOptions.length * OPTION_HEIGHT] }),
+            overflow: "hidden",
+            height: menuAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, menuOptions.length * OPTION_HEIGHT],
+            }),
             opacity: menuAnim,
           }}
         >
           {menuOptions.map((option) => (
             <TouchableOpacity
               key={option}
-              style={[styles.menuOptions, activeOption === option && styles.activeMenuOption]}
+              style={[
+                styles.menuOptions,
+                activeOption === option && styles.activeMenuOption,
+              ]}
               onPress={() => handleOptionPress(option)}
             >
               <Text style={styles.menuText}>{option}</Text>
@@ -271,7 +374,11 @@ export default function Home() {
         <TouchableOpacity onPress={toggleWidgets} style={styles.arrowButton}>
           <Animated.Image
             source={arrowup}
-            style={{ width: 50, height: 50, transform: [{ rotate: arrowRotation }] }}
+            style={{
+              width: 50,
+              height: 50,
+              transform: [{ rotate: arrowRotation }],
+            }}
             resizeMode="contain"
           />
         </TouchableOpacity>
@@ -282,9 +389,11 @@ export default function Home() {
             <View style={styles.widgetLeftColumn}>
               <View style={styles.widgetRisk}>
                 <Text style={styles.widgetRiskLabel}>Risk Level</Text>
-                <Text style={styles.widgetRiskLevel}>LOW</Text>
+                <Text style={[styles.widgetRiskLevel, { color: riskColor }]}>
+                  {riskLevel}
+                </Text>
                 <View style={styles.divider} />
-                <Text style={styles.widgetRiskVerdict}>No Harm Detected</Text>
+                <Text style={styles.widgetRiskVerdict}>{riskCondition}</Text>
               </View>
 
               <TouchableOpacity
@@ -298,8 +407,8 @@ export default function Home() {
                   {temperatureC !== null
                     ? `${temperatureC}°C`
                     : weatherLoading
-                      ? '...'
-                      : '0°C'}
+                      ? "..."
+                      : "0°C"}
                 </Text>
               </TouchableOpacity>
 
@@ -314,15 +423,15 @@ export default function Home() {
                   {humidity !== null
                     ? `${humidity}%`
                     : weatherLoading
-                      ? '...'
-                      : '0%'}
+                      ? "..."
+                      : "0%"}
                 </Text>
                 <Text style={styles.widgetWindValue}>
                   {windKph !== null
                     ? `Wind: ${windKph} km/h`
                     : weatherLoading
-                      ? '...'
-                      : '0 km/h'}
+                      ? "..."
+                      : "0 km/h"}
                 </Text>
               </TouchableOpacity>
 
@@ -337,8 +446,8 @@ export default function Home() {
                   {soilMoisture !== null
                     ? `${soilMoisture}%`
                     : soilLoading
-                      ? '...'
-                      : '0%'}
+                      ? "..."
+                      : "0%"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -347,12 +456,19 @@ export default function Home() {
             <View style={styles.widgetRightColumn}>
               <View style={styles.widgetLocation}>
                 <View style={styles.locationArea}>
-                  <TouchableOpacity onPress={handleLocationPress} disabled={locationLoading} style={styles.locationIconButton}>
-                    <Image source={require('../image/Location.png')} style={styles.locpng} />
+                  <TouchableOpacity
+                    onPress={handleLocationPress}
+                    disabled={locationLoading}
+                    style={styles.locationIconButton}
+                  >
+                    <Image
+                      source={require("../image/Location.png")}
+                      style={styles.locpng}
+                    />
                   </TouchableOpacity>
-                  <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false} 
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
                     style={styles.locationTextScroll}
                     contentContainerStyle={styles.locationTextContent}
                   >
@@ -362,13 +478,16 @@ export default function Home() {
                   </ScrollView>
                 </View>
 
-                <TouchableOpacity 
-                  style={styles.weather} 
+                <TouchableOpacity
+                  style={styles.weather}
                   onPress={handleWeatherPress}
                   disabled={weatherLoading}
                   activeOpacity={0.7}
                 >
-                  <Image source={weatherIcon} style={styles.weatherCondition} />
+                  <Image
+                    source={weatherIcon}
+                    style={styles.weatherCondition}
+                  />
                   <Text style={styles.condition}>
                     {weatherLoading ? "Updating..." : weatherCondition}
                   </Text>
@@ -377,19 +496,37 @@ export default function Home() {
 
               <View style={styles.widgetCalendar}>
                 <Text style={styles.calendarMonthYear}>
-                  {new Date().toLocaleString('en-US', { month: 'short', year: 'numeric' })}
+                  {new Date().toLocaleString("en-US", {
+                    month: "short",
+                    year: "numeric",
+                  })}
                 </Text>
                 <View style={styles.divider2} />
                 <View style={styles.calendarGrid}>
-                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                    <Text key={day} style={styles.calendarDayHeader}>{day.slice(0, 1)}</Text>
-                  ))}
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                    (day) => (
+                      <Text key={day} style={styles.calendarDayHeader}>
+                        {day.slice(0, 1)}
+                      </Text>
+                    )
+                  )}
                   {Array.from({ length: 35 }).map((_, idx) => {
-                    const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getDay();
-                    const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+                    const firstDay = new Date(
+                      new Date().getFullYear(),
+                      new Date().getMonth(),
+                      1
+                    ).getDay();
+                    const daysInMonth = new Date(
+                      new Date().getFullYear(),
+                      new Date().getMonth() + 1,
+                      0
+                    ).getDate();
                     const dayNum = idx - firstDay + 1;
                     const today = new Date().getDate();
-                    const isToday = dayNum === today && idx >= firstDay && idx < firstDay + daysInMonth;
+                    const isToday =
+                      dayNum === today &&
+                      idx >= firstDay &&
+                      idx < firstDay + daysInMonth;
                     const isValidDay = dayNum > 0 && dayNum <= daysInMonth;
                     return (
                       <View
@@ -400,7 +537,12 @@ export default function Home() {
                         ]}
                       >
                         {isValidDay && (
-                          <Text style={[styles.calendarDate, isToday && styles.calendarTodayText]}>
+                          <Text
+                            style={[
+                              styles.calendarDate,
+                              isToday && styles.calendarTodayText,
+                            ]}
+                          >
                             {dayNum}
                           </Text>
                         )}
@@ -412,9 +554,23 @@ export default function Home() {
 
               <View style={styles.widgetNotifications}>
                 <Text style={styles.widgetNotifLabel}>Notifications</Text>
-                <TouchableOpacity style={styles.notif}>
-                  <Text style={styles.notifLabel}>Notification</Text>
-                </TouchableOpacity>
+                <ScrollView 
+                  horizontal={false}
+                  showsVerticalScrollIndicator={false}
+                  style={{ maxHeight: 150 }}
+                >
+                  {notifications.length > 0 && notifications.map((notif, index) => (
+                    <NotificationBanner
+                      key={`notif-${notif.id}-${index}`}
+                      notification={notif}
+                      onRemove={removeNotification}
+                      onPress={() => {
+                        removeNotification(notif.id);
+                        navigation.navigate('realtimer');
+                      }}
+                    />
+                  ))}
+                </ScrollView>
               </View>
             </View>
           </View>
@@ -428,30 +584,21 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  camera: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
   menuContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: 35,
     left: 0,
-    width: 175,
-    backgroundColor: 'rgba(217,217,217,0.9)',
-    // keep left corners square, animate right corners between closed/open
+    backgroundColor: "rgba(217,217,217,0.9)",
     borderTopLeftRadius: 0,
     borderBottomLeftRadius: 0,
-    overflow: 'hidden',
+    overflow: "hidden",
     zIndex: 10,
   },
   menuHeader: {
     height: 60,
-    justifyContent: 'center',
+    justifyContent: "center",
     paddingLeft: 10,
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
   },
   burgerIconClosed: {
     width: 30,
@@ -465,16 +612,16 @@ const styles = StyleSheet.create({
   menuOptions: {
     paddingLeft: 14,
     height: 44,
-    justifyContent: 'center',
+    justifyContent: "center",
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.99)'
+    borderTopColor: "rgba(0,0,0,0.99)",
   },
   menuText: {
     fontSize: 16,
-    fontFamily: 'AlegreyaSC',
+    fontFamily: "AlegreyaSC",
   },
   activeMenuOption: {
-    backgroundColor: "rgba(255, 255, 255, 0.99)", // Highlight color
+    backgroundColor: "rgba(255, 255, 255, 0.99)",
   },
   bottomPanel: {
     position: "absolute",
@@ -496,29 +643,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   widgetColumnsWrapper: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "flex-start",
     marginTop: 2,
   },
   widgetLeftColumn: {
-    width: '30%',
+    width: "30%",
     flex: 1,
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
   },
   widgetRightColumn: {
-    width: '70%',
+    width: "70%",
     flex: 1,
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
-  /*  Left widgets */
   widgetRisk: {
     width: 143,
     height: 151,
-    backgroundColor: 'rgba(255,255,255,1)',
+    backgroundColor: "rgba(255,255,255,1)",
     borderRadius: 10,
     paddingHorizontal: 12,
-    alignItems: 'center',
+    alignItems: "center",
     elevation: 2,
     marginBottom: 10,
     marginLeft: 13,
@@ -526,11 +672,11 @@ const styles = StyleSheet.create({
   widgetTemperature: {
     width: 143,
     height: 151,
-    backgroundColor: 'rgba(255,255,255,1)',
+    backgroundColor: "rgba(255,255,255,1)",
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 12,
-    alignItems: 'center',
+    alignItems: "center",
     elevation: 2,
     marginBottom: 10,
     marginLeft: 13,
@@ -538,11 +684,11 @@ const styles = StyleSheet.create({
   widgetHumidity: {
     width: 143,
     height: 151,
-    backgroundColor: 'rgba(255,255,255,1)',
+    backgroundColor: "rgba(255,255,255,1)",
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 12,
-    alignItems: 'center',
+    alignItems: "center",
     elevation: 2,
     marginBottom: 10,
     marginLeft: 13,
@@ -550,20 +696,19 @@ const styles = StyleSheet.create({
   widgetSoil: {
     width: 143,
     height: 151,
-    backgroundColor: 'rgba(255,255,255,1)',
+    backgroundColor: "rgba(255,255,255,1)",
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 12,
-    alignItems: 'center',
+    alignItems: "center",
     elevation: 2,
     marginBottom: 10,
     marginLeft: 13,
   },
-  /* Right widgets */
   widgetLocation: {
     width: 233,
     height: 151,
-    backgroundColor: 'rgba(255,255,255,1)',
+    backgroundColor: "rgba(255,255,255,1)",
     borderRadius: 10,
     marginBottom: 10,
     marginRight: 13,
@@ -572,11 +717,11 @@ const styles = StyleSheet.create({
   widgetCalendar: {
     width: 233,
     height: 226,
-    backgroundColor: 'rgba(255,255,255,1)',
+    backgroundColor: "rgba(255,255,255,1)",
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 12,
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 10,
     marginRight: 13,
     elevation: 2,
@@ -584,88 +729,82 @@ const styles = StyleSheet.create({
   widgetNotifications: {
     width: 233,
     height: 236,
-    backgroundColor: 'rgba(255,255,255,1)',
+    backgroundColor: "rgba(255,255,255,1)",
     borderRadius: 10,
     marginBottom: 10,
     marginRight: 13,
     elevation: 2,
   },
-  /* Risk level widget labels*/
   widgetRiskLabel: {
     fontSize: 13,
-    fontFamily: 'AlegreyaSC',
-    color: '#000000ff',
+    fontFamily: "AlegreyaSC",
+    color: "#000000ff",
     marginTop: 8,
     marginBottom: 6,
   },
   widgetRiskLevel: {
     fontSize: 25,
-    fontFamily: 'AlegreyaSCMedium',
-    color: '#2ABD1D',
+    fontFamily: "AlegreyaSCMedium",
+    color: "#2ABD1D",
   },
   divider: {
-    height: 1,
-    width: '85%',
     height: 2,
-    backgroundColor: 'rgba(0, 0, 0, 1)',
+    width: "85%",
+    backgroundColor: "rgba(0, 0, 0, 1)",
     marginVertical: 8,
   },
   widgetRiskVerdict: {
     fontSize: 12,
-    fontFamily: 'AlegreyaSCMedium',
-    color: '#000000ff',
+    fontFamily: "AlegreyaSCMedium",
+    color: "#000000ff",
     marginTop: 6,
   },
-  /* Temperature widget labels*/
   widgetTempLabel: {
     fontSize: 13,
-    fontFamily: 'AlegreyaSC',
-    color: '#000000ff',
+    fontFamily: "AlegreyaSC",
+    color: "#000000ff",
     marginTop: 10,
     marginBottom: 6,
   },
   widgetTempValue: {
     marginTop: 6,
     fontSize: 50,
-    fontFamily: 'Akshar',
+    fontFamily: "Akshar",
   },
-  /* Humidity widget labels*/
   widgetHumidityLabel: {
     fontSize: 13,
-    fontFamily: 'AlegreyaSC',
-    color: '#000000ff',
+    fontFamily: "AlegreyaSC",
+    color: "#000000ff",
     marginTop: 10,
     marginBottom: 6,
   },
   widgetHumidityValue: {
     marginTop: 6,
     fontSize: 50,
-    fontFamily: 'Akshar',
+    fontFamily: "Akshar",
   },
   widgetWindValue: {
     fontSize: 11,
-    fontFamily: 'AlegreyaSC',
-    color: '#000000ff',
+    fontFamily: "AlegreyaSC",
+    color: "#000000ff",
     marginTop: 5,
     marginBottom: 5,
   },
-  /* Soil Moisture widget labels*/
   widgetSoilLabel: {
     fontSize: 13,
-    fontFamily: 'AlegreyaSC',
-    color: '#000000ff',
+    fontFamily: "AlegreyaSC",
+    color: "#000000ff",
     marginTop: 10,
     marginBottom: 6,
   },
   widgetSoilValue: {
     marginTop: 6,
     fontSize: 50,
-    fontFamily: 'Akshar',
+    fontFamily: "Akshar",
   },
-  /* Location widget labels */
   locationArea: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     marginTop: 8,
     paddingHorizontal: 8,
   },
@@ -681,94 +820,105 @@ const styles = StyleSheet.create({
     maxHeight: 40,
   },
   locationTextContent: {
-    alignItems: 'center',
+    alignItems: "center",
   },
   widgetLocLabel: {
     fontSize: 12,
-    fontFamily: 'AlegreyaSC',
-    color: '#000000ff',
+    fontFamily: "AlegreyaSC",
+    color: "#000000ff",
     paddingTop: 4,
   },
-  weatherCondition: {
-    alignItems: 'center',
+  weather: {
+    alignItems: "center",
   },
   weatherCondition: {
     width: 120,
     height: 80,
-    alignSelf: 'center',
+    alignSelf: "center",
   },
   condition: {
     fontSize: 12,
-    fontFamily: 'AlegreyaSCMedium',
-    color: '#000000ff',
-    alignSelf: 'center',
+    fontFamily: "AlegreyaSCMedium",
+    color: "#000000ff",
+    alignSelf: "center",
   },
-  /* Calendar widget labels*/
   calendarMonthYear: {
     fontSize: 14,
-    fontFamily: 'AlegreyaSCMedium',
-    color: '#222',
+    fontFamily: "AlegreyaSCMedium",
+    color: "#222",
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: "center",
   },
   divider2: {
-    height: 1,
-    width: '95%',
+    width: "95%",
     height: 2,
-    backgroundColor: 'rgba(0, 0, 0, 1)',
+    backgroundColor: "rgba(0, 0, 0, 1)",
   },
   calendarGrid: {
-    display: 'flex',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    width: '100%',
+    display: "flex",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    width: "100%",
   },
   calendarDayHeader: {
-    width: '14.28%',
-    textAlign: 'center',
+    width: "14.28%",
+    textAlign: "center",
     fontSize: 14,
-    fontFamily: 'AlegreyaSCMedium',
-    color: '#666',
+    fontFamily: "AlegreyaSCMedium",
+    color: "#666",
     marginTop: 5,
     marginBottom: 4,
   },
   calendarDateCell: {
-    width: '14.28%',
+    width: "14.28%",
     aspectRatio: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderRadius: 4,
     marginBottom: 2,
   },
   calendarToday: {
-    backgroundColor: '#2563EB',
+    backgroundColor: "#2563EB",
     borderRadius: 100,
   },
   calendarDate: {
     fontSize: 14,
-    fontFamily: 'AlegreyaSC',
-    color: '#333',
+    fontFamily: "AlegreyaSC",
+    color: "#333",
   },
   calendarTodayText: {
-    color: '#fff',
-    fontFamily: 'AlegreyaSC'
+    color: "#fff",
+    fontFamily: "AlegreyaSC",
   },
-  /* Notifications widget labels*/
   widgetNotifLabel: {
     fontSize: 18,
-    fontFamily: 'AlegreyaSCMedium',
-    color: '#000000ff',
-    alignSelf: 'center',
+    fontFamily: "AlegreyaSCMedium",
+    color: "#000000ff",
+    alignSelf: "center",
   },
   notif: {
-    backgroundColor: 'rgba(217, 217, 217, 1)',
-    paddingVertical: 3,
-    paddingLeft: 5,
+    backgroundColor: "rgba(217, 217, 217, 1)",
+    paddingVertical: 6,
+    paddingLeft: 8,
+    paddingRight: 8,
     marginHorizontal: 6,
-    borderRadius: 3,
-    alignItems: 'flex-start',
+    marginBottom: 6,
+    borderRadius: 6,
+    alignItems: "flex-start",
+    minHeight: 45,
+  },
+  notifActive: {
+    backgroundColor: "rgba(34, 197, 94, 0.2)",
+    borderLeftWidth: 4,
+    borderLeftColor: "#22C55E",
   },
   notifLabel: {
-    fontFamily: 'Alef',
+    fontFamily: "Alef",
+  },
+  notifTime: {
+    fontFamily: "AlegreyaSC",
+    fontSize: 10,
+    color: "#666",
+    marginTop: 2,
   },
 });

@@ -1,35 +1,27 @@
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet
-} from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
-export default function AuthScreen() {
-  const [activeTab, setActiveTab] = useState("login");
+export default function AuthScreen(): React.ReactElement {
+  const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
 
   return (
     <LinearGradient colors={["#ffffff", "#f8cfd4"]} style={styles.container}>
       <View style={styles.card}>
-
         {/* Toggle Bar */}
         <View style={styles.toggleWrapper}>
-          
           {/* LOG IN */}
           <TouchableOpacity
             style={[
               styles.toggleButton,
-              activeTab === "login" ? styles.active : styles.inactive
+              activeTab === "login" ? styles.active : styles.inactive,
             ]}
             onPress={() => setActiveTab("login")}
           >
             <Text
               style={[
                 styles.toggleText,
-                activeTab === "login" ? styles.activeText : styles.inactiveRed
+                activeTab === "login" ? styles.activeText : styles.inactiveRed,
               ]}
             >
               LOG IN
@@ -40,14 +32,14 @@ export default function AuthScreen() {
           <TouchableOpacity
             style={[
               styles.toggleButton,
-              activeTab === "signup" ? styles.active : styles.inactive
+              activeTab === "signup" ? styles.active : styles.inactive,
             ]}
             onPress={() => setActiveTab("signup")}
           >
             <Text
               style={[
                 styles.toggleText,
-                activeTab === "signup" ? styles.activeText : styles.inactiveRed
+                activeTab === "signup" ? styles.activeText : styles.inactiveRed,
               ]}
             >
               SIGN UP
@@ -75,7 +67,6 @@ export default function AuthScreen() {
             {activeTab === "login" ? "Log In" : "Sign Up"}
           </Text>
         </TouchableOpacity>
-
       </View>
     </LinearGradient>
   );
@@ -89,7 +80,8 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    width: 270,
+    width: 300,
+    height: 450,
     padding: 20,
     borderRadius: 16,
     backgroundColor: "#f1eaea",
@@ -102,14 +94,16 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     overflow: "hidden",
     backgroundColor: "white",
-    marginBottom: 20,
+    marginBottom: 90,
+    marginHorizontal: 40,
   },
 
   toggleButton: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 3,
     justifyContent: "center",
     alignItems: "center",
+    borderRadius: 30,
   },
 
   active: {
@@ -121,8 +115,8 @@ const styles = StyleSheet.create({
   },
 
   toggleText: {
-    fontWeight: "bold",
-    fontSize: 16,
+    fontSize: 18,
+    fontFamily: "AlegreyaSCMedium",
   },
 
   activeText: {
@@ -136,13 +130,14 @@ const styles = StyleSheet.create({
   /* Inputs */
   input: {
     backgroundColor: "white",
-    borderRadius: 6,
+    borderRadius: 10,
     padding: 10,
     marginBottom: 12,
     fontSize: 14,
+    fontFamily: "AlegreyaSC",
   },
 
-  /* Button */
+  /* Main button */
   mainButton: {
     backgroundColor: "#fafafa",
     paddingVertical: 8,
@@ -152,7 +147,7 @@ const styles = StyleSheet.create({
   },
 
   mainButtonText: {
-    fontWeight: "bold",
+    fontFamily: "AlegreyaSC",
     color: "#444",
   },
 });
