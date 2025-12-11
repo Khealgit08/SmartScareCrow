@@ -65,6 +65,7 @@ export interface AuthState {
 const STORAGE_KEYS = {
   AUTH_TOKEN: '@auth_token',
   USER_DATA: '@user_data',
+  PROFILE_PICTURE: '@profile_picture',
 };
 
 class AuthService {
@@ -250,16 +251,22 @@ class AuthService {
           });
           console.log('✅ Server logout successful');
         } catch (error) {
-          console.warn('⚠️ Server logout failed, clearing local data anyway');
+          console.warn('⚠️ Server logout failed, clearing local session anyway');
         }
       }
       
-      // Clear local storage
+      // IMPORTANT: Only clear auth token and user data from session
+      // Do NOT clear profile picture, records, settings, or notifications
+      // These should persist for when user logs back in
       await AsyncStorage.multiRemove([
         STORAGE_KEYS.AUTH_TOKEN,
         STORAGE_KEYS.USER_DATA,
       ]);
-      console.log('✅ Local auth data cleared');
+      
+      // Note: Profile picture, records, settings remain in AsyncStorage
+      // They are tied to user ID and will be loaded on next login
+      
+      console.log('✅ Session cleared (user data preserved in storage)');
     } catch (error) {
       console.error('❌ Error during logout:', error);
       throw error;
@@ -435,6 +442,45 @@ class AuthService {
     } catch (error) {
       console.error('❌ Google login failed:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Save profile picture URI to AsyncStorage
+   */
+  async saveProfilePicture(uri: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.PROFILE_PICTURE, uri);
+      console.log('✅ Profile picture saved:', uri);
+    } catch (error) {
+      console.error('❌ Error saving profile picture:', error);
+      throw new Error('Failed to save profile picture');
+    }
+  }
+
+  /**
+   * Get profile picture URI from AsyncStorage
+   */
+  async getProfilePicture(): Promise<string | null> {
+    try {
+      const uri = await AsyncStorage.getItem(STORAGE_KEYS.PROFILE_PICTURE);
+      return uri;
+    } catch (error) {
+      console.error('❌ Error getting profile picture:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Remove profile picture
+   */
+  async removeProfilePicture(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEYS.PROFILE_PICTURE);
+      console.log('✅ Profile picture removed');
+    } catch (error) {
+      console.error('❌ Error removing profile picture:', error);
+      throw new Error('Failed to remove profile picture');
     }
   }
 }

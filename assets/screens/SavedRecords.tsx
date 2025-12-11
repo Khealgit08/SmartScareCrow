@@ -1,11 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Image, Pressable, Alert, Platform } from "react-native";
 import * as Sharing from 'expo-sharing';
 import { Ionicons, Feather, MaterialIcons } from "@expo/vector-icons";
-import { useNavigation, NavigationProp } from "@react-navigation/native";
+import { useNavigation, NavigationProp, useFocusEffect } from "@react-navigation/native";
 import MenuAndWidgetPanel from "../components/MenuAndWidgetPanel";
 import { useRecording, CapturedRecord } from "../../contexts/RecordingContext";
 import type { RootStackParamList } from "../../navigation.types";
+import { authService, UserData } from "../../services/authService";
 
 type SavedRecordsNavigationProp = NavigationProp<RootStackParamList, "savedr">;
 
@@ -14,6 +15,35 @@ export default function SavedR(): React.ReactElement {
   const { savedRecords, moveSavedToDeleted } = useRecording();
   const [selectedImage, setSelectedImage] = useState<CapturedRecord | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadUserData();
+  }, []);
+
+  // Reload user data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('⚡ Saved Records screen focused, reloading data...');
+      loadUserData();
+    }, [])
+  );
+
+  const loadUserData = async () => {
+    try {
+      const data = await authService.getUserData();
+      const picture = await authService.getProfilePicture();
+      setUserData(data);
+      setProfilePicture(picture);
+    } catch (error) {
+      console.error("Error loading user data:", error);
+    }
+  };
+
+  const displayName = userData 
+    ? `${userData.first_name} ${userData.last_name}`.trim() || userData.email || userData.username
+    : "Username";
 
   const handleCardPress = (item: CapturedRecord): void => {
     setSelectedImage(item);
@@ -26,13 +56,11 @@ export default function SavedR(): React.ReactElement {
   };
 
   const handleDelete = (item: CapturedRecord): void => {
-    // Move from saved to deleted records
     moveSavedToDeleted(item.id);
   };
 
   const handleShare = async (item: CapturedRecord): Promise<void> => {
     try {
-      // Check if sharing is available
       const isAvailable = await Sharing.isAvailableAsync();
       
       if (!isAvailable) {
@@ -40,7 +68,6 @@ export default function SavedR(): React.ReactElement {
         return;
       }
 
-      // If there's an image, share it
       if (item.imageUri) {
         await Sharing.shareAsync(item.imageUri, {
           dialogTitle: `${item.objectType} - ${item.dateTime}`,
@@ -59,8 +86,12 @@ export default function SavedR(): React.ReactElement {
       <View style={styles.container}>
         {/* Profile Header */}
         <View style={styles.profileSection}>
-          <Ionicons name="person-circle-outline" size={90} color="#000" />
-          <Text style={styles.username}>Username</Text>
+          {profilePicture ? (
+            <Image source={{ uri: profilePicture }} style={styles.profileImage} />
+          ) : (
+            <Ionicons name="person-circle-outline" size={90} color="#000" />
+          )}
+          <Text style={styles.username}>{displayName}</Text>
         </View>
 
         {/* Section Title */}
@@ -175,6 +206,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 20,
     marginBottom: 10,
+  },
+  profileImage: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
   },
   username: {
     fontSize: 20,

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -12,6 +12,7 @@ import MenuAndWidgetPanel from "../components/MenuAndWidgetPanel";
 
 export default function Home(): React.ReactElement {
   const [permission, requestPermission] = useCameraPermissions();
+  const cameraRef = useRef<CameraView>(null);
   
   // Use global detection context
   const { detectionEnabled, detections, hasHuman, hasPest, toggleDetection, setOnObjectDetected } = useDetection();
@@ -25,32 +26,68 @@ export default function Home(): React.ReactElement {
     }
   }, [permission, requestPermission]);
 
-  // Register detection callback to save captures to real-time records
+  // Register detection callback to save captures to real-time records with real images
   useEffect(() => {
-    const handleObjectDetected = (objectType: string, imageUri?: string) => {
-      const now = new Date();
-      const time = now.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit',
-        hour12: true 
-      });
-      const date = now.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: '2-digit', 
-        day: '2-digit' 
-      });
-      
-      const record = {
-        id: `${Date.now()}`,
-        objectType,
-        timestamp: time,
-        dateTime: `${time} | ${date}`,
-        imageUri,
-      };
-      
-      addRecord(record);
-      console.log(`📸 Captured: ${objectType} at ${time}`);
+    const handleObjectDetected = async (objectType: string) => {
+      try {
+        // Capture real image from camera
+        let imageUri: string | undefined;
+        
+        if (cameraRef.current) {
+          const photo = await cameraRef.current.takePictureAsync({
+            quality: 0.8,
+            base64: false,
+          });
+          imageUri = photo?.uri;
+          console.log('📸 Image captured:', imageUri);
+        }
+        
+        const now = new Date();
+        const time = now.toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          second: '2-digit',
+          hour12: true 
+        });
+        const date = now.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: '2-digit', 
+          day: '2-digit' 
+        });
+        
+        const record = {
+          id: `${Date.now()}`,
+          objectType,
+          timestamp: time,
+          dateTime: `${time} | ${date}`,
+          imageUri,
+        };
+        
+        addRecord(record);
+        console.log(`📸 Captured: ${objectType} at ${time}`);
+      } catch (error) {
+        console.error('Error capturing image:', error);
+        // Still add record without image if capture fails
+        const now = new Date();
+        const time = now.toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          second: '2-digit',
+          hour12: true 
+        });
+        const date = now.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: '2-digit', 
+          day: '2-digit' 
+        });
+        
+        addRecord({
+          id: `${Date.now()}`,
+          objectType,
+          timestamp: time,
+          dateTime: `${time} | ${date}`,
+        });
+      }
     };
     
     if (setOnObjectDetected) {
@@ -60,7 +97,7 @@ export default function Home(): React.ReactElement {
 
   return (
     <MenuAndWidgetPanel>
-      <CameraView style={styles.camera} facing="back" />
+      <CameraView style={styles.camera} facing="back" ref={cameraRef} />
       
       {/* AI Detection Overlay */}
       <View style={styles.detectionOverlay}>

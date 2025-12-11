@@ -13,8 +13,11 @@ import {
 import { Audio } from 'expo-av';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import MenuAndWidgetPanel from "../components/MenuAndWidgetPanel";
 import { useRecording } from "../../contexts/RecordingContext";
+import { authService } from "../../services/authService";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -26,18 +29,32 @@ interface AlertSound {
   isCustom: boolean;
 }
 
+interface UserSettings {
+  volumeLevel: number;
+  selectedSoundId: string;
+  alertSounds: AlertSound[];
+  geoEnabled: boolean;
+  connectedDevices: string[];
+  anchorLocation: Location.LocationObject | null;
+}
+
+const getSettingsKey = (userId: number | null) => {
+  return userId ? `@settings_${userId}` : `@settings_guest`;
+};
+
 export default function Settings(): React.ReactElement {
   const [geoEnabled, setGeoEnabled] = useState<boolean>(false);
-  const [sliderWidth, setSliderWidth] = useState<number>(300); // Default width
+  const [sliderWidth, setSliderWidth] = useState<number>(300);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
-  // Devices (mock available via Bluetooth scan)
+  // Devices
   const [availableDevices, setAvailableDevices] = useState<string[]>([]);
   const [connectedDevices, setConnectedDevices] = useState<string[]>([]);
 
   // Geofencing state
   const [anchorLocation, setAnchorLocation] = useState<Location.LocationObject | null>(null);
   const [geofenceBreached, setGeofenceBreached] = useState<boolean>(false);
-  const geofenceRadiusMeters = 50; // boundary radius
+  const geofenceRadiusMeters = 50;
   const locationSubRef = useRef<Location.LocationSubscription | null>(null);
 
   const { addRecord, setAlertVolume, setAlertSoundUri } = useRecording();
@@ -53,7 +70,7 @@ export default function Settings(): React.ReactElement {
   ]);
   const soundRef = useRef<Audio.Sound | null>(null);
 
-  // Sound URIs for built-in sounds (using reliable notification sounds from different sources)
+  // Sound URIs
   const builtInSoundUris: { [key: string]: any } = {
     sound1: { uri: 'https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg' },
     sound2: { uri: 'https://actions.google.com/sounds/v1/alarms/beep_short.ogg' },
@@ -63,17 +80,148 @@ export default function Settings(): React.ReactElement {
   };
 
   // Volume control state
-  // Volume levels: 0=20%, 1=40%, 2=60%, 3=80%, 4=100%
-  const [volumeLevel, setVolumeLevel] = useState<number>(2); // Default to 60%
-  const dotPositions = [0, 0.25, 0.5, 0.75, 1]; // Positions for 5 dots
+  const [volumeLevel, setVolumeLevel] = useState<number>(2);
+  const dotPositions = [0, 0.25, 0.5, 0.75, 1];
   const volumePercentages = [20, 40, 60, 80, 100];
 
-  // Animated value for the white dot position
   const pan = useRef(new Animated.Value(0)).current;
   const panOffset = useRef(0);
   const currentPanValue = useRef(0);
 
-  // Initialize and reinitialize pan when sliderWidth or volumeLevel changes
+  // Load user settings on mount AND when screen comes into focus
+  useEffect(() => {
+    loadUserSettings();
+  }, []);
+
+  // Reload settings every time the screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('⚡ Settings screen focused, reloading settings...');
+      loadUserSettings();
+    }, [])
+  );
+
+  // Save settings whenever they change
+  useEffect(() => {
+    if (currentUserId !== null) {
+      saveUserSettings();
+    }
+  }, [volumeLevel, selectedSoundId, alertSounds, geoEnabled, connectedDevices, anchorLocation, currentUserId]);
+
+  const loadUserSettings = async () => {
+    try {
+      const userData = await authService.getUserData();
+      const userId = userData?.id || null;
+      
+      console.log('🔄 Loading settings for user ID:', userId);
+      setCurrentUserId(userId);
+
+      if (userId) {
+        const settingsKey = getSettingsKey(userId);
+        const settingsJson = await AsyncStorage.getItem(settingsKey);
+        
+        if (settingsJson) {
+          const settings: UserSettings = JSON.parse(settingsJson);
+          console.log('📥 Loaded settings:', settings);
+          
+          setVolumeLevel(settings.volumeLevel);
+          setSelectedSoundId(settings.selectedSoundId);
+          setAlertSounds(settings.alertSounds);
+          setGeoEnabled(settings.geoEnabled);
+          setConnectedDevices(settings.connectedDevices);
+          setAnchorLocation(settings.anchorLocation);
+
+          // Restart geofencing if it was enabled
+          if (settings.geoEnabled && settings.anchorLocation) {
+            restartGeofencing(settings.anchorLocation);
+          }
+          
+          console.log('✅ Settings loaded successfully');
+        } else {
+          console.log('📥 No settings found, using defaults');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error loading user settings:', error);
+    }
+  };
+
+  const saveUserSettings = async () => {
+    try {
+      if (currentUserId) {
+        const settings: UserSettings = {
+          volumeLevel,
+          selectedSoundId,
+          alertSounds,
+          geoEnabled,
+          connectedDevices,
+          anchorLocation,
+        };
+        
+        const settingsKey = getSettingsKey(currentUserId);
+        await AsyncStorage.setItem(settingsKey, JSON.stringify(settings));
+        console.log('✅ Settings saved for user:', currentUserId);
+      }
+    } catch (error) {
+      console.error('Error saving user settings:', error);
+    }
+  };
+
+  const restartGeofencing = async (anchor: Location.LocationObject) => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setGeoEnabled(false);
+        return;
+      }
+
+      setAnchorLocation(anchor);
+      setGeofenceBreached(false);
+
+      if (locationSubRef.current) {
+        locationSubRef.current.remove();
+      }
+
+      const sub = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 5000,
+          distanceInterval: 5,
+        },
+        (pos) => {
+          if (!anchor) return;
+          const dist = distanceMeters(
+            anchor.coords.latitude,
+            anchor.coords.longitude,
+            pos.coords.latitude,
+            pos.coords.longitude
+          );
+
+          if (dist > geofenceRadiusMeters && !geofenceBreached) {
+            setGeofenceBreached(true);
+            const now = new Date();
+            addRecord({
+              id: `geofence-${now.getTime()}`,
+              objectType: 'Geofence Alert',
+              timestamp: now.toISOString(),
+              dateTime: now.toLocaleString(),
+            });
+            Alert.alert('Geofence Alert', 'Device left the virtual boundary.');
+          }
+
+          if (dist <= geofenceRadiusMeters && geofenceBreached) {
+            setGeofenceBreached(false);
+          }
+        }
+      );
+
+      locationSubRef.current = sub;
+    } catch (error) {
+      console.error('Error restarting geofencing:', error);
+    }
+  };
+
+  // ...existing code for pan responder initialization...
   useEffect(() => {
     if (sliderWidth > 0) {
       const initialValue = dotPositions[volumeLevel] * sliderWidth;
@@ -82,7 +230,6 @@ export default function Settings(): React.ReactElement {
     }
   }, [sliderWidth, volumeLevel, pan]);
 
-  // PanResponder for dragging the white dot
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -91,22 +238,15 @@ export default function Settings(): React.ReactElement {
         panOffset.current = currentPanValue.current;
       },
       onPanResponderMove: (_, gestureState) => {
-        // Calculate the new position
         const newPosition = panOffset.current + gestureState.dx;
-        // Clamp between 0 and sliderWidth
         const clampedValue = Math.max(0, Math.min(sliderWidth, newPosition));
-        // Update current pan value
         pan.setValue(clampedValue);
       },
       onPanResponderRelease: (_, gestureState) => {
-        // Calculate final position
         const finalPosition = panOffset.current + gestureState.dx;
         const clampedPosition = Math.max(0, Math.min(sliderWidth, finalPosition));
-        
-        // Update current value
         currentPanValue.current = clampedPosition;
         
-        // Find closest predefined level
         let nearestIndex = 0;
         let minDistance = Math.abs((clampedPosition / sliderWidth) - dotPositions[0]);
         dotPositions.forEach((pos, index) => {
@@ -117,18 +257,15 @@ export default function Settings(): React.ReactElement {
           }
         });
         
-        // Snap to nearest position
         const snappedPosition = dotPositions[nearestIndex] * sliderWidth;
         pan.setValue(snappedPosition);
         currentPanValue.current = snappedPosition;
-        
-        // Update volume level state
         setVolumeLevel(nearestIndex);
       },
     })
   ).current;
 
-  // Haversine distance (meters)
+  // ...existing helper functions...
   const distanceMeters = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const toRad = (v: number) => (v * Math.PI) / 180;
     const R = 6371000;
@@ -142,7 +279,6 @@ export default function Settings(): React.ReactElement {
     return R * c;
   };
 
-  // Start geofencing: set anchor and watch position
   const startGeofencing = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -156,7 +292,6 @@ export default function Settings(): React.ReactElement {
       setAnchorLocation(current);
       setGeofenceBreached(false);
 
-      // Clear previous subscription
       if (locationSubRef.current) {
         locationSubRef.current.remove();
         locationSubRef.current = null;
@@ -169,10 +304,10 @@ export default function Settings(): React.ReactElement {
           distanceInterval: 5,
         },
         (pos) => {
-          if (!anchorLocation) return;
+          if (!current) return;
           const dist = distanceMeters(
-            anchorLocation.coords.latitude,
-            anchorLocation.coords.longitude,
+            current.coords.latitude,
+            current.coords.longitude,
             pos.coords.latitude,
             pos.coords.longitude
           );
@@ -203,7 +338,6 @@ export default function Settings(): React.ReactElement {
     }
   };
 
-  // Stop geofencing
   const stopGeofencing = () => {
     if (locationSubRef.current) {
       locationSubRef.current.remove();
@@ -213,29 +347,24 @@ export default function Settings(): React.ReactElement {
     setGeofenceBreached(false);
   };
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopGeofencing();
     };
   }, []);
 
-  // Sync volume level to RecordingContext
   useEffect(() => {
     const volumePercentage = volumePercentages[volumeLevel];
     setAlertVolume(volumePercentage);
   }, [volumeLevel, setAlertVolume]);
 
-  // Sync selected sound to RecordingContext
   useEffect(() => {
     let soundUri: string | null = null;
     
-    // Check if it's a built-in sound
     const builtInSound = builtInSoundUris[selectedSoundId];
     if (builtInSound) {
       soundUri = builtInSound.uri;
     } else {
-      // Check if it's a custom sound
       const customSound = alertSounds.find(s => s.id === selectedSoundId);
       if (customSound && customSound.uri) {
         soundUri = customSound.uri;
@@ -247,17 +376,14 @@ export default function Settings(): React.ReactElement {
     }
   }, [selectedSoundId, alertSounds, setAlertSoundUri, builtInSoundUris]);
 
-  // Play sound when user selects it
   const playSound = async (soundId: string) => {
     try {
-      // Set audio mode for playback
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: true,
         allowsRecordingIOS: false,
         staysActiveInBackground: false,
       });
 
-      // Stop any currently playing sound
       if (soundRef.current) {
         await soundRef.current.stopAsync();
         await soundRef.current.unloadAsync();
@@ -266,7 +392,6 @@ export default function Settings(): React.ReactElement {
 
       const sound = alertSounds.find(s => s.id === soundId);
       
-      // Determine the source
       let soundSource;
       if (sound?.isCustom && sound.uri) {
         soundSource = { uri: sound.uri };
@@ -282,7 +407,6 @@ export default function Settings(): React.ReactElement {
         );
         soundRef.current = newSound;
         
-        // Auto-unload after playing
         newSound.setOnPlaybackStatusUpdate((status) => {
           if (status.isLoaded && status.didJustFinish) {
             newSound.unloadAsync();
@@ -291,17 +415,14 @@ export default function Settings(): React.ReactElement {
         });
       }
 
-      // Mark as selected
       setSelectedSoundId(soundId);
     } catch (error) {
       console.error('Error playing sound:', error);
       Alert.alert('Sound Error', 'Unable to play sound. Please check your device volume.');
-      // Still mark as selected even if sound fails to play
       setSelectedSoundId(soundId);
     }
   };
 
-  // Add custom alert sound from device
   const addCustomSound = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -315,7 +436,6 @@ export default function Settings(): React.ReactElement {
 
       const file = result.assets[0];
       
-      // Add the custom sound to the list
       const newSound: AlertSound = {
         id: `custom-${Date.now()}`,
         name: file.name,
@@ -324,9 +444,7 @@ export default function Settings(): React.ReactElement {
       };
 
       setAlertSounds(prev => [...prev, newSound]);
-      // Automatically select the newly added custom sound
       setSelectedSoundId(newSound.id);
-      // Sync to RecordingContext
       setAlertSoundUri(file.uri);
       Alert.alert('Success', 'Custom sound added and selected successfully!');
     } catch (error) {

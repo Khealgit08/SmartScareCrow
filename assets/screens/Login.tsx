@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -11,13 +11,17 @@ import {
   Modal,
   FlatList,
   Pressable,
+  Animated,
 } from "react-native";
 import { useNavigation, NavigationProp } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import type { RootStackParamList } from "../../navigation.types";
 import { authService, GoogleUserInfo } from "../../services/authService";
-import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
+import * as Google from "expo-auth-session/providers/google";
+import * as WebBrowser from "expo-web-browser";
+import * as AuthSession from "expo-auth-session";
+import { useRecording } from "../../contexts/RecordingContext";
+import { MaterialIcons } from "@expo/vector-icons";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -33,181 +37,219 @@ export default function AuthScreen(): React.ReactElement {
   const [username, setUsername] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
-  const [firstName, setFirstName] = useState<string>("");
-  const [lastName, setLastName] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [showGooglePicker, setShowGooglePicker] = useState<boolean>(false);
+  const { loadUserRecords } = useRecording();
   
-  // Mock Google accounts (simulating device accounts)
-  const [googleAccounts] = useState<GoogleUserInfo[]>([
-    { email: "user@gmail.com", name: "User Name", given_name: "User", family_name: "Name" },
-    { email: "example@gmail.com", name: "Example User", given_name: "Example", family_name: "User" },
-  ]);
+  // Error state
+  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [showError, setShowError] = useState<boolean>(false);
+  const shakeAnimation = useState(new Animated.Value(0))[0];
+  const fadeAnimation = useState(new Animated.Value(0))[0];
+
+  // Generate the redirect URI
+  const redirectUri = AuthSession.makeRedirectUri({
+    scheme: 'smartcrow',
+    path: undefined,
+  });
+
+  // Log the redirect URI for debugging
+  useEffect(() => {
+    console.log('=================================');
+    console.log('REDIRECT URI:', redirectUri);
+    console.log('=================================');
+  }, [redirectUri]);
+
+  // --- GOOGLE AUTH REQUEST ---
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    androidClientId: "737038204682-ohnf4aqvj1ia7cld4uh5it5hgn7oa0dn.apps.googleusercontent.com",
+    iosClientId: "737038204682-a2g0ph5frglv653f1bhb02no4kl891og.apps.googleusercontent.com",
+    scopes: ["profile", "email"],
+  });
+
+  useEffect(() => {
+    const handleResponse = async () => {
+      if (response?.type === "success") {
+        const { authentication } = response;
+        const accessToken = authentication?.accessToken ?? authentication?.idToken ?? null;
+        if (!accessToken) {
+          Alert.alert("Google Sign-In Failed", "No access token returned from Google.");
+          return;
+        }
+
+        setIsLoading(true);
+
+        try {
+          const userInfoResp = await fetch(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            }
+          );
+
+          if (!userInfoResp.ok) {
+            throw new Error("Failed to fetch Google profile.");
+          }
+
+          const googleProfile: GoogleUserInfo = await userInfoResp.json();
+
+          try {
+            const authState = await (authService as any).loginWithGoogleOAuth?.(
+              googleProfile.email,
+              accessToken
+            );
+
+            if (authState) {
+              Alert.alert(
+                "Welcome!",
+                `Hello, ${authState.user?.first_name ?? googleProfile.name}!`,
+                [{ text: "OK", onPress: () => navigation.navigate("home") }]
+              );
+              return;
+            }
+
+            throw new Error("No auth state returned");
+          } catch (err: any) {
+            const msg = err instanceof Error ? err.message : String(err || "");
+            if (msg.toLowerCase().includes("not found") || msg.toLowerCase().includes("unable to log in")) {
+              setActiveTab("signup");
+              setEmail(googleProfile.email);
+              Alert.alert(
+                "Account Not Found",
+                "This Google account is not registered with the app. Complete Sign Up to link it."
+              );
+            } else {
+              Alert.alert("Google Sign-In Error", msg || "Unable to sign in with Google.");
+            }
+          }
+        } catch (err: any) {
+          console.error("Google flow error:", err);
+          Alert.alert("Google Sign-In Error", err instanceof Error ? err.message : "Unknown error");
+        } finally {
+          setIsLoading(false);
+        }
+      } else if (response?.type === "error") {
+        Alert.alert("Google Sign-In Cancelled", "Google sign-in has been cancelled or failed.");
+      }
+    };
+
+    handleResponse();
+  }, [response]);
+
+  // Animate error display
+  const displayError = (message: string) => {
+    setErrorMessage(message);
+    setShowError(true);
+
+    Animated.timing(fadeAnimation, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+
+    Animated.sequence([
+      Animated.timing(shakeAnimation, { toValue: 10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnimation, { toValue: -10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnimation, { toValue: 10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnimation, { toValue: 0, duration: 50, useNativeDriver: true }),
+    ]).start();
+
+    setTimeout(() => {
+      hideError();
+    }, 5000);
+  };
+
+  const hideError = () => {
+    Animated.timing(fadeAnimation, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowError(false);
+      setErrorMessage("");
+    });
+  };
 
   const handleLogin = async () => {
-    // Validation
     if (!username.trim() || !password.trim()) {
-      Alert.alert("Error", "Please enter both ID number and password");
+      displayError("Please enter both ID number and password");
       return;
     }
 
     setIsLoading(true);
-
+    hideError();
+    
     try {
-      console.log("🔐 Attempting login...");
       const authState = await authService.login({
         username: username.trim(),
         password: password.trim(),
       });
-
-      console.log("✅ Login successful!");
+      
+      await loadUserRecords();
+      
       Alert.alert(
         "Welcome!",
         `Hello, ${authState.user?.first_name} ${authState.user?.last_name}!`,
-        [
-          {
-            text: "OK",
-            onPress: () => navigation.navigate("home"),
-          },
-        ]
+        [{ text: "OK", onPress: () => navigation.navigate("home") }]
       );
     } catch (error) {
-      console.error("❌ Login error:", error);
       const errorMessage = error instanceof Error ? error.message : "Login failed. Please try again.";
-      Alert.alert("Login Failed", errorMessage);
+      displayError(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleSignup = async () => {
-    // Validation
-    if (!email.trim() || !password.trim() || !firstName.trim() || !lastName.trim()) {
-      Alert.alert("Error", "Please fill in all fields");
+    if (!email.trim() || !password.trim()) {
+      displayError("Please fill in all fields");
       return;
     }
 
     if (!email.includes("@")) {
-      Alert.alert("Error", "Please enter a valid email address");
+      displayError("Please enter a valid email address");
+      return;
+    }
+
+    if (password.length < 6) {
+      displayError("Password must be at least 6 characters");
       return;
     }
 
     setIsLoading(true);
-
+    hideError();
+    
     try {
-      console.log("📝 Attempting signup...");
+      const emailName = email.split("@")[0];
       const authState = await authService.signup({
         email: email.trim(),
         password: password.trim(),
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
+        first_name: emailName,
+        last_name: "User",
       });
 
-      console.log("✅ Signup successful!");
+      await loadUserRecords();
+
       Alert.alert(
         "Account Created!",
-        `Welcome, ${authState.user?.first_name}! You've been automatically logged in.`,
-        [
-          {
-            text: "Get Started",
-            onPress: () => navigation.navigate("home"),
-          },
-        ]
+        `Welcome, ${authState.user?.first_name ?? "user"}! You've been automatically logged in.`,
+        [{ text: "Get Started", onPress: () => navigation.navigate("home") }]
       );
     } catch (error) {
-      console.error("❌ Signup error:", error);
       const errorMessage = error instanceof Error ? error.message : "Signup failed. Please try again.";
-      Alert.alert("Signup Failed", errorMessage);
+      displayError(errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGoogleSignIn = () => {
-    setShowGooglePicker(true);
-  };
-
-  const handleGoogleAccountSelect = async (account: GoogleUserInfo) => {
-    setShowGooglePicker(false);
-    
-    if (activeTab === "login") {
-      // Try to login with Google account
-      Alert.alert(
-        "Sign in with Google",
-        `Sign in as ${account.name}?\n\nNote: If this is your first time, you'll need to sign up first.`,
-        [
-          {
-            text: "Cancel",
-            style: "cancel"
-          },
-          {
-            text: "Continue",
-            onPress: async () => {
-              // Prompt for password
-              Alert.prompt(
-                "Enter Password",
-                `Please enter your password for ${account.email}`,
-                [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Sign In",
-                    onPress: async (password) => {
-                      if (!password) {
-                        Alert.alert("Error", "Password is required");
-                        return;
-                      }
-
-                      setIsLoading(true);
-                      try {
-                        const authState = await authService.loginWithGoogle(account.email, password);
-                        Alert.alert(
-                          "Welcome Back!",
-                          `Hello, ${authState.user?.first_name}!`,
-                          [{ text: "OK", onPress: () => navigation.navigate("home") }]
-                        );
-                      } catch (error) {
-                        const errorMessage = error instanceof Error ? error.message : "";
-                        if (errorMessage.includes("Unable to log in") || errorMessage.includes("Invalid")) {
-                          Alert.alert(
-                            "Account Not Found",
-                            "This Google account is not registered. Would you like to sign up?",
-                            [
-                              { text: "Cancel", style: "cancel" },
-                              {
-                                text: "Sign Up",
-                                onPress: () => {
-                                  setActiveTab("signup");
-                                  setEmail(account.email);
-                                  setFirstName(account.given_name);
-                                  setLastName(account.family_name);
-                                }
-                              }
-                            ]
-                          );
-                        } else {
-                          Alert.alert("Error", errorMessage);
-                        }
-                      } finally {
-                        setIsLoading(false);
-                      }
-                    }
-                  }
-                ],
-                "secure-text"
-              );
-            }
-          }
-        ]
-      );
-    } else {
-      // Sign up mode - pre-fill email and name
-      setEmail(account.email);
-      setFirstName(account.given_name);
-      setLastName(account.family_name);
-      Alert.alert(
-        "Google Account Selected",
-        `Email: ${account.email}\n\nPlease enter a password to complete your registration.`
-      );
+  const handleGoogleSignIn = async () => {
+    try {
+      setIsLoading(true);
+      await promptAsync();
+    } catch (err) {
+      console.error("promptAsync error:", err);
+      Alert.alert("Error", "Failed to start Google sign-in.");
+      setIsLoading(false);
     }
   };
 
@@ -217,41 +259,48 @@ export default function AuthScreen(): React.ReactElement {
       locations={[0, 0.31, 1]}
       style={styles.container}
     >
+      {/* Error Message Banner */}
+      {showError && (
+        <Animated.View
+          style={[
+            styles.errorBanner,
+            {
+              opacity: fadeAnimation,
+              transform: [{ translateX: shakeAnimation }],
+            },
+          ]}
+        >
+          <MaterialIcons name="error-outline" size={24} color="#fff" />
+          <Text style={styles.errorText}>{errorMessage}</Text>
+          <TouchableOpacity onPress={hideError} style={styles.errorClose}>
+            <MaterialIcons name="close" size={20} color="#fff" />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+
       <View style={styles.card}>
         {/* Toggle Bar */}
         <View style={styles.toggleWrapper}>
-          {/* LOG IN */}
           <TouchableOpacity
-            style={[
-              styles.toggleButton,
-              activeTab === "login" ? styles.active : styles.inactive,
-            ]}
-            onPress={() => setActiveTab("login")}
+            style={[styles.toggleButton, activeTab === "login" ? styles.active : styles.inactive]}
+            onPress={() => {
+              setActiveTab("login");
+              hideError();
+            }}
           >
-            <Text
-              style={[
-                styles.toggleText,
-                activeTab === "login" ? styles.activeText : styles.inactiveRed,
-              ]}
-            >
+            <Text style={[styles.toggleText, activeTab === "login" ? styles.activeText : styles.inactiveRed]}>
               Log In
             </Text>
           </TouchableOpacity>
 
-          {/* SIGN UP */}
           <TouchableOpacity
-            style={[
-              styles.toggleButton,
-              activeTab === "signup" ? styles.active : styles.inactive,
-            ]}
-            onPress={() => setActiveTab("signup")}
+            style={[styles.toggleButton, activeTab === "signup" ? styles.active : styles.inactive]}
+            onPress={() => {
+              setActiveTab("signup");
+              hideError();
+            }}
           >
-            <Text
-              style={[
-                styles.toggleText,
-                activeTab === "signup" ? styles.activeText : styles.inactiveRed,
-              ]}
-            >
+            <Text style={[styles.toggleText, activeTab === "signup" ? styles.activeText : styles.inactiveRed]}>
               Sign Up
             </Text>
           </TouchableOpacity>
@@ -262,11 +311,14 @@ export default function AuthScreen(): React.ReactElement {
           <>
             <TextInput
               placeholder="ID Number"
-              style={styles.input}
+              style={[styles.input, showError && !username.trim() && styles.inputError]}
               underlineColorAndroid="transparent"
               placeholderTextColor="#999"
               value={username}
-              onChangeText={setUsername}
+              onChangeText={(text) => {
+                setUsername(text);
+                if (showError) hideError();
+              }}
               autoCapitalize="none"
               keyboardType="default"
               editable={!isLoading}
@@ -275,11 +327,14 @@ export default function AuthScreen(): React.ReactElement {
             <TextInput
               placeholder="Password"
               secureTextEntry
-              style={styles.input}
+              style={[styles.input, showError && !password.trim() && styles.inputError]}
               underlineColorAndroid="transparent"
               placeholderTextColor="#999"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (showError) hideError();
+              }}
               autoCapitalize="none"
               editable={!isLoading}
             />
@@ -288,46 +343,30 @@ export default function AuthScreen(): React.ReactElement {
           <>
             <TextInput
               placeholder="Email Address"
-              style={styles.input}
+              style={[styles.input, showError && !email.trim() && styles.inputError]}
               underlineColorAndroid="transparent"
               placeholderTextColor="#999"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (showError) hideError();
+              }}
               autoCapitalize="none"
               keyboardType="email-address"
               editable={!isLoading}
             />
 
             <TextInput
-              placeholder="First Name"
-              style={styles.input}
-              underlineColorAndroid="transparent"
-              placeholderTextColor="#999"
-              value={firstName}
-              onChangeText={setFirstName}
-              autoCapitalize="words"
-              editable={!isLoading}
-            />
-
-            <TextInput
-              placeholder="Last Name"
-              style={styles.input}
-              underlineColorAndroid="transparent"
-              placeholderTextColor="#999"
-              value={lastName}
-              onChangeText={setLastName}
-              autoCapitalize="words"
-              editable={!isLoading}
-            />
-
-            <TextInput
               placeholder="Password"
               secureTextEntry
-              style={styles.input}
+              style={[styles.input, showError && !password.trim() && styles.inputError]}
               underlineColorAndroid="transparent"
               placeholderTextColor="#999"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (showError) hideError();
+              }}
               autoCapitalize="none"
               editable={!isLoading}
             />
@@ -336,14 +375,11 @@ export default function AuthScreen(): React.ReactElement {
 
         {/* Google Login Button */}
         <TouchableOpacity 
-          style={styles.googleButton}
-          onPress={handleGoogleSignIn}
-          disabled={isLoading}
+          style={[styles.googleButton, isLoading && styles.buttonDisabled]} 
+          onPress={handleGoogleSignIn} 
+          disabled={isLoading || !request}
         >
-          <Image
-            source={require("../../assets/image/Google__G__logo.png")}
-            style={styles.googleIcon}
-          />
+          <Image source={require("../../assets/image/Google__G__logo.png")} style={styles.googleIcon} />
           <Text style={styles.googleText}>Continue with Google</Text>
         </TouchableOpacity>
 
@@ -357,58 +393,10 @@ export default function AuthScreen(): React.ReactElement {
             <ActivityIndicator color="#444" size="small" />
           ) : (
             <Text style={styles.mainButtonText}>
-              {activeTab === "login" ? "Sign In Securely" : "Create Account"}
+              {activeTab === "login" ? "Log In" : "Sign Up"}
             </Text>
           )}
         </TouchableOpacity>
-
-        {/* Google Account Picker Modal */}
-        <Modal
-          visible={showGooglePicker}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowGooglePicker(false)}
-        >
-          <Pressable 
-            style={styles.modalOverlay}
-            onPress={() => setShowGooglePicker(false)}
-          >
-            <View style={styles.pickerContainer}>
-              <Text style={styles.pickerTitle}>Choose an account</Text>
-              <Text style={styles.pickerSubtitle}>
-                to continue to SmartScareCrow
-              </Text>
-              
-              <FlatList
-                data={googleAccounts}
-                keyExtractor={(item) => item.email}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.accountItem}
-                    onPress={() => handleGoogleAccountSelect(item)}
-                  >
-                    <View style={styles.accountAvatar}>
-                      <Text style={styles.accountInitial}>
-                        {item.given_name[0]}
-                      </Text>
-                    </View>
-                    <View style={styles.accountInfo}>
-                      <Text style={styles.accountName}>{item.name}</Text>
-                      <Text style={styles.accountEmail}>{item.email}</Text>
-                    </View>
-                  </TouchableOpacity>
-                )}
-              />
-
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setShowGooglePicker(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        </Modal>
       </View>
     </LinearGradient>
   );
@@ -421,6 +409,37 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
+  errorBanner: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    right: 20,
+    backgroundColor: '#E53E3E',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    zIndex: 1000,
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+
+  errorText: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: "AlegreyaSC",
+    marginLeft: 12,
+    marginRight: 8,
+  },
+
+  errorClose: {
+    padding: 4,
+  },
+
   card: {
     width: 300,
     height: 450,
@@ -430,7 +449,6 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
 
-  /* Toggle pill */
   toggleWrapper: {
     flexDirection: "row",
     borderRadius: 30,
@@ -469,7 +487,6 @@ const styles = StyleSheet.create({
     color: "#d94d48",
   },
 
-  /* Inputs */
   input: {
     backgroundColor: "white",
     borderRadius: 10,
@@ -477,9 +494,15 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontSize: 14,
     fontFamily: "AlegreyaSC",
+    borderWidth: 1,
+    borderColor: "transparent",
   },
 
-  /* Google Button */
+  inputError: {
+    borderColor: "#E53E3E",
+    borderWidth: 1,
+  },
+
   googleButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -503,7 +526,6 @@ const styles = StyleSheet.create({
     fontFamily: "AlegreyaSC",
   },
 
-  /* Main button */
   mainButton: {
     backgroundColor: "#fafafa",
     paddingVertical: 8,
@@ -522,7 +544,10 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
 
-  /* Google Account Picker Modal */
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
