@@ -3,9 +3,6 @@
     "version": ">= 16.28.0",
     "appVersionSource": "remote"
   },
-  "updates": {
-    "url": "https://u.expo.dev/5e60bdbf-3938-471a-8737-b5dc4c859960"
-  },
   "build": {
     "development": {
       "developmentClient": true,

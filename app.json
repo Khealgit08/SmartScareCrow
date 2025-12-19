@@ -4,6 +4,12 @@
     "slug": "SmartCrow",
     "scheme": "smartcrow",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/5e60bdbf-3938-471a-8737-b5dc4c859960"
+    },
     "orientation": "portrait",
     "icon": "./assets/image/Picture1.png",
     "userInterfaceStyle": "light",
@@ -17,7 +23,8 @@
           "recordAudioAndroid": true
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-image-picker"
     ],
     "splash": {
       "image": "./assets/image/Picture1.png",
@@ -30,6 +37,7 @@
         "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera",
         "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone",
         "NSLocationWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to access your location",
+        "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos to change profile picture.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "bundleIdentifier": "com.smartcrow.app"
@@ -51,7 +59,9 @@
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
       "edgeToEdgeEnabled": true
     },
