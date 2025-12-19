@@ -16,9 +16,7 @@
       "env": {
         "NODE_ENV": "production"
       },
-      "node": "18.18.0",
-      "npm": "10.2.0",
-      "buildCommand": "npm install --legacy-peer-deps && npm run build"
+      "node": "18.18.0"
     }
   },
   "submit": {
