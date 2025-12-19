@@ -83,9 +83,13 @@ const styles = StyleSheet.create({
     width: 300,
     height: 450,
     padding: 20,
-    borderRadius: 16,
-    backgroundColor: "#f1eaea",
+    borderRadius: 20,
+    backgroundColor: "rgba(66, 52, 52, 0.15)",
     elevation: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
   },
 
   /* Toggle pill */

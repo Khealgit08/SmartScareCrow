@@ -7,7 +7,6 @@ import { DetectionProvider } from './contexts/DetectionContext';
 import { RecordingProvider } from './contexts/RecordingContext';
 import Login from './assets/screens/Login';
 import Signup from './assets/screens/Signup';
-import Signupwith from './assets/screens/Signupwith';
 import Home from './assets/screens/HomeWidget';
 import Profile from './assets/screens/MainProfile';
 import Settings from './assets/screens/Settings';
@@ -53,11 +52,10 @@ export default function App(): React.ReactElement {
         <Stack.Navigator 
           id="root"
           screenOptions={{ headerShown: false }} 
-          initialRouteName="home"
+          initialRouteName="login"
         >
           <Stack.Screen name="login" component={Login} />
           <Stack.Screen name="signup" component={Signup} />
-          <Stack.Screen name="signupwith" component={Signupwith} />
           <Stack.Screen name="home" component={Home} />
           <Stack.Screen name="profile" component={Profile} />
           <Stack.Screen name="settings" component={Settings} />

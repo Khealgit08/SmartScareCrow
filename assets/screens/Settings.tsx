@@ -10,6 +10,7 @@ import {
   Animated,
   Alert,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Audio } from 'expo-av';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Location from 'expo-location';
@@ -400,6 +401,7 @@ export default function Settings(): React.ReactElement {
       }
 
       if (soundSource) {
+        // Use the current alert volume level (convert percentage to decimal)
         const currentVolume = volumePercentages[volumeLevel] / 100;
         const { sound: newSound } = await Audio.Sound.createAsync(
           soundSource,
@@ -455,175 +457,179 @@ export default function Settings(): React.ReactElement {
 
   return (
     <MenuAndWidgetPanel>
-      <ScrollView
+      <LinearGradient
+        colors={["#ffffff", "#f6e1e5"]}
         style={styles.content}
-        contentContainerStyle={{ paddingBottom: 200 }}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
       >
-        {/* CONNECTED DEVICES */}
-        <Text style={styles.sectionTitle}>Connected ScraeCrow Devices</Text>
-        <View style={styles.divider} />
-
-        {connectedDevices.length > 0 ? (
-          connectedDevices.map((name, i) => (
-            <View key={i} style={styles.deviceRow}>
-              <MaterialIcons name="device-hub" size={24} color="black" />
-              <Text style={styles.deviceName}>{name}</Text>
-              <TouchableOpacity style={styles.deleteButton} onPress={() => setConnectedDevices(prev => prev.filter(d => d !== name))}>
-                <MaterialCommunityIcons name="connection" size={24} color="green" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteButton} onPress={() => setConnectedDevices(prev => prev.filter(d => d !== name))}>
-                <MaterialIcons name="delete" size={24} color="red" />
-              </TouchableOpacity>
-            </View>
-          ))
-        ) : (
-          <View style={styles.emptyDevices}>
-            <Text style={styles.emptyText}>No devices connected</Text>
-          </View>
-        )}
-
-        {/* AVAILABLE DEVICES (Bluetooth scan) */}
-        <View style={{ marginTop: 16 }}>
-          <Text style={styles.sectionTitle}>Available Devices</Text>
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 200 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* CONNECTED DEVICES */}
+          <Text style={styles.sectionTit}>Connected ScareCrow Devices</Text>
           <View style={styles.divider} />
 
-          <TouchableOpacity
-            style={styles.scanButton}
-            onPress={() => setAvailableDevices(["Crow BT-01", "Crow BT-02", "Crow BT-03"])}
-          >
-            <Text style={styles.scanText}>
-                <FontAwesome name="refresh" size={22} color="white" />  Scan</Text>
-          </TouchableOpacity>
-
-          {availableDevices.length > 0 ? (
-            availableDevices.map((name, i) => (
-              <View key={`avail-${i}`} style={styles.deviceRow}>
-              <MaterialIcons name="device-hub" size={24} color="black" />
+          {connectedDevices.length > 0 ? (
+            connectedDevices.map((name, i) => (
+              <View key={i} style={styles.deviceRow}>
+                <MaterialIcons name="device-hub" size={24} color="black" />
                 <Text style={styles.deviceName}>{name}</Text>
-                <TouchableOpacity
-                  style={styles.connectButton}
-                  onPress={() => {
-                    setConnectedDevices(prev => prev.includes(name) ? prev : [...prev, name]);
-                    setAvailableDevices(prev => prev.filter(d => d !== name));
-                  }}
-                >
-                  <Text style={{ color: "white", fontFamily: "AlegreyaSC" }}>Connect</Text>
+                <TouchableOpacity style={styles.deleteButton} onPress={() => setConnectedDevices(prev => prev.filter(d => d !== name))}>
+                  <MaterialCommunityIcons name="connection" size={24} color="green" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.deleteButton} onPress={() => setConnectedDevices(prev => prev.filter(d => d !== name))}>
+                  <MaterialIcons name="delete" size={24} color="red" />
                 </TouchableOpacity>
               </View>
             ))
           ) : (
             <View style={styles.emptyDevices}>
-              <Text style={styles.emptyText}>No nearby devices found</Text>
+              <Text style={styles.emptyText}>No devices connected</Text>
             </View>
           )}
-        </View>
 
-        {/* ALERT PREFERENCE */}
-        <Text style={styles.sectionTitle}>Alert Preference</Text>
-        <View style={styles.divider} />
+          {/* AVAILABLE DEVICES (Bluetooth scan) */}
+          <View style={{ marginTop: 16 }}>
+            <Text style={styles.sectionTitle}>Available Devices</Text>
+            <View style={styles.divider} />
 
-        <Text style={styles.subTitle}>Alert Volume</Text>
-
-        {/* Interactive slider with draggable white dot */}
-        <View 
-          style={styles.sliderContainer}
-          onLayout={(event) => {
-            const { width } = event.nativeEvent.layout;
-            setSliderWidth(width);
-          }}
-        >
-          {/* Continuous horizontal line */}
-          <View style={styles.sliderLine} />
-          
-          {/* Black dots and labels */}
-          {dotPositions.map((pos, index) => (
-            <View key={`dot-${index}`}>
-              <View 
-                style={[
-                  styles.sliderDot,
-                  { left: pos * sliderWidth }
-                ]} 
-              />
-              <Text 
-                style={[
-                  styles.dotLabel,
-                  { left: pos * sliderWidth }
-                ]}
-              >
-                {volumePercentages[index]}%
-              </Text>
-            </View>
-          ))}
-
-          {/* Draggable white dot */}
-          <Animated.View
-            style={[
-              styles.whiteDot,
-              {
-                transform: [{ translateX: pan }],
-              },
-            ]}
-            {...panResponder.panHandlers}
-          />
-        </View>
-
-        {/* Display current volume percentage */}
-        <View style={styles.volumeDisplayContainer}>
-          <Text style={styles.volumeDisplay}>
-            Current Volume: {volumePercentages[volumeLevel]}%
-          </Text>
-        </View>
-
-        {/* Alert Sound */}
-        <View style={{ marginTop: 20 }}>
-          <Text style={styles.subTitle}>Alert Sound</Text>
-
-          {/* List of alert sounds */}
-          {alertSounds.map((sound) => (
             <TouchableOpacity
-              key={sound.id}
-              style={styles.row}
-              onPress={() => playSound(sound.id)}
+              style={styles.scanButton}
+              onPress={() => setAvailableDevices(["Crow BT-01", "Crow BT-02", "Crow BT-03"])}
             >
-              <Text style={styles.soundName}>{sound.name}</Text>
-              {selectedSoundId === sound.id && (
-                <Text style={styles.checkmark}>✔️</Text>
-              )}
+              <Text style={styles.scanText}>
+                  <FontAwesome name="refresh" size={22} color="white" />  Scan</Text>
             </TouchableOpacity>
-          ))}
 
-          {/* Add custom sound button */}
-          <TouchableOpacity
-            style={[styles.row, { marginTop: 10 }]}
-            onPress={addCustomSound}
-          >
-            <Text style={styles.addSound}>➕ Add Alert Sound</Text>
-          </TouchableOpacity>
-        </View>
+            {availableDevices.length > 0 ? (
+              availableDevices.map((name, i) => (
+                <View key={`avail-${i}`} style={styles.deviceRow}>
+                <MaterialIcons name="device-hub" size={24} color="black" />
+                  <Text style={styles.deviceName}>{name}</Text>
+                  <TouchableOpacity
+                    style={styles.connectButton}
+                    onPress={() => {
+                      setConnectedDevices(prev => prev.includes(name) ? prev : [...prev, name]);
+                      setAvailableDevices(prev => prev.filter(d => d !== name));
+                    }}
+                  >
+                    <Text style={{ color: "white", fontFamily: "AlegreyaSC" }}>Connect</Text>
+                  </TouchableOpacity>
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyDevices}>
+                <Text style={styles.emptyText}>No nearby devices found</Text>
+              </View>
+            )}
+          </View>
 
-        {/* GEOFENCING */}
-        <Text style={styles.sectionTitle}>Geofencing</Text>
-        <View style={styles.divider} />
+          {/* ALERT PREFERENCE */}
+          <Text style={styles.sectionTitle}>Alert Preference</Text>
+          <View style={styles.divider} />
 
-        <View style={styles.row}>
-          <Text style={styles.subTitle}>Enable/Disable Geofencing</Text>
-          <Switch
-            value={geoEnabled}
-            onValueChange={(value) => {
-              setGeoEnabled(value);
-              if (value) {
-                startGeofencing();
-                Alert.alert('Geofencing Enabled', 'Virtual boundary is active. Device leaving the boundary will trigger a theft alert and show in notifications.');
-              }
-              if (!value) {
-                stopGeofencing();
-              }
+          <Text style={styles.subTitle}>Alert Volume</Text>
+
+          {/* Interactive slider with draggable white dot */}
+          <View 
+            style={styles.sliderContainer}
+            onLayout={(event) => {
+              const { width } = event.nativeEvent.layout;
+              setSliderWidth(width);
             }}
-          />
-        </View>
-      </ScrollView>
+          >
+            {/* Continuous horizontal line */}
+            <View style={styles.sliderLine} />
+            
+            {/* Black dots and labels */}
+            {dotPositions.map((pos, index) => (
+              <View key={`dot-${index}`}>
+                <View 
+                  style={[
+                    styles.sliderDot,
+                    { left: pos * sliderWidth }
+                  ]} 
+                />
+                <Text 
+                  style={[
+                    styles.dotLabel,
+                    { left: pos * sliderWidth }
+                  ]}
+                >
+                  {volumePercentages[index]}%
+                </Text>
+              </View>
+            ))}
+
+            {/* Draggable white dot */}
+            <Animated.View
+              style={[
+                styles.whiteDot,
+                {
+                  transform: [{ translateX: pan }],
+                },
+              ]}
+              {...panResponder.panHandlers}
+            />
+          </View>
+
+          {/* Display current volume percentage */}
+          <View style={styles.volumeDisplayContainer}>
+            <Text style={styles.volumeDisplay}>
+              Current Volume: {volumePercentages[volumeLevel]}%
+            </Text>
+          </View>
+
+          {/* Alert Sound */}
+          <View style={{ marginTop: 20 }}>
+            <Text style={styles.subTitle}>Alert Sound</Text>
+
+            {/* List of alert sounds */}
+            {alertSounds.map((sound) => (
+              <TouchableOpacity
+                key={sound.id}
+                style={styles.row}
+                onPress={() => playSound(sound.id)}
+              >
+                <Text style={styles.soundName}>{sound.name}</Text>
+                {selectedSoundId === sound.id && (
+                  <Text style={styles.checkmark}>✔️</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+
+            {/* Add custom sound button */}
+            <TouchableOpacity
+              style={[styles.row, { marginTop: 10 }]}
+              onPress={addCustomSound}
+            >
+              <Text style={styles.addSound}>➕ Add Alert Sound</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* GEOFENCING */}
+          <Text style={styles.sectionTitle}>Geofencing</Text>
+          <View style={styles.divider} />
+
+          <View style={styles.row}>
+            <Text style={styles.subTitle}>Enable/Disable Geofencing</Text>
+            <Switch
+              value={geoEnabled}
+              onValueChange={(value) => {
+                setGeoEnabled(value);
+                if (value) {
+                  startGeofencing();
+                  Alert.alert('Geofencing Enabled', 'Virtual boundary is active. Device leaving the boundary will trigger a theft alert and show in notifications.');
+                }
+                if (!value) {
+                  stopGeofencing();
+                }
+              }}
+            />
+          </View>
+        </ScrollView>
+      </LinearGradient>
     </MenuAndWidgetPanel>
   );
 }
@@ -633,10 +639,14 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 100,
-    backgroundColor: "rgba(235, 221, 220, 0.85)",
+  },
+  sectionTit: {
+    marginTop: 10,
+    fontSize: 20,
+    fontFamily: "AlegreyaSCMedium",
   },
   sectionTitle: {
-    marginTop: 20,
+    marginTop: 50,
     fontSize: 20,
     fontFamily: "AlegreyaSCMedium",
   },
@@ -699,9 +709,10 @@ const styles = StyleSheet.create({
   subTitle: { marginBottom: 10, fontFamily: "AlegreyaSCMedium" },
   sliderContainer: {
     height: 60,
-    width: "100%",
+    width: "85%",
     marginVertical: 20,
     position: "relative",
+    alignSelf: "center",
   },
   sliderLine: {
     position: "absolute",

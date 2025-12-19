@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image, Alert } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation, NavigationProp } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
 import MenuAndWidgetPanel from "../components/MenuAndWidgetPanel";
 import type { RootStackParamList } from "../../navigation.types";
 import { authService, UserData } from "../../services/authService";
@@ -121,7 +122,10 @@ export default function MainProfileScreen(): React.ReactElement {
 
   return (
     <MenuAndWidgetPanel>
-      <View style={styles.container}>
+      <LinearGradient
+        colors={["#ffffff", "#f6e1e5"]}
+        style={styles.container}
+      >
         {/* Logout Button */}
         <TouchableOpacity 
           style={styles.logoutButton}
@@ -180,7 +184,7 @@ export default function MainProfileScreen(): React.ReactElement {
             <Text style={styles.recordText}>RECENTLY DELETED RECORDS</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </LinearGradient>
     </MenuAndWidgetPanel>
   );
 }
@@ -188,7 +192,6 @@ export default function MainProfileScreen(): React.ReactElement {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "rgba(246, 238, 238, 0.85)",
     paddingTop: 50,
   },
   logoutButton: {
@@ -227,7 +230,6 @@ const styles = StyleSheet.create({
   },
   usernameText: {
     fontSize: 20,
-    fontWeight: "bold",
     fontFamily: "AlegreyaSCMedium",
     marginTop: 5,
     marginBottom: 5,
@@ -263,7 +265,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 8,
     fontSize: 12,
-    fontWeight: "bold",
     fontFamily: "AlegreyaSC",
   },
 });

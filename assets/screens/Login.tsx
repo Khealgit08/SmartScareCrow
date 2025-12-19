@@ -489,17 +489,23 @@ const styles = StyleSheet.create({
     width: 300,
     height: 450,
     padding: 20,
-    borderRadius: 16,
-    backgroundColor: "#f1eaea",
-    elevation: 6,
+    borderRadius: 20,
+    backgroundColor: "rgba(66, 52, 52, 0.15)",
+    shadowColor: "rgba(0, 0, 0, 0.25)",
+    shadowOffset: { 
+      width: 0, 
+      height: 4 
+    },
+    shadowOpacity: 1,
+    shadowRadius: 20,
   },
-
   toggleWrapper: {
     flexDirection: "row",
     borderRadius: 30,
     overflow: "hidden",
     backgroundColor: "white",
     marginBottom: 90,
+    marginTop: 10,
     marginHorizontal: 40,
   },
 

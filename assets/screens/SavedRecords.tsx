@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Image, Pre
 import * as Sharing from 'expo-sharing';
 import { Ionicons, Feather, MaterialIcons } from "@expo/vector-icons";
 import { useNavigation, NavigationProp, useFocusEffect } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
 import MenuAndWidgetPanel from "../components/MenuAndWidgetPanel";
 import { useRecording, CapturedRecord } from "../../contexts/RecordingContext";
 import type { RootStackParamList } from "../../navigation.types";
@@ -83,7 +84,10 @@ export default function SavedR(): React.ReactElement {
 
   return (
     <MenuAndWidgetPanel>
-      <View style={styles.container}>
+      <LinearGradient
+        colors={["#ffffff", "#f6e1e5"]}
+        style={styles.container}
+      >
         {/* Profile Header */}
         <View style={styles.profileSection}>
           {profilePicture ? (
@@ -190,7 +194,7 @@ export default function SavedR(): React.ReactElement {
             </View>
           </Pressable>
         </Modal>
-      </View>
+      </LinearGradient>
     </MenuAndWidgetPanel>
   );
 }
@@ -198,7 +202,6 @@ export default function SavedR(): React.ReactElement {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "rgba(246, 237, 237, 0.85)",
     padding: 20,
   },
 

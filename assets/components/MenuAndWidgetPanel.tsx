@@ -11,7 +11,8 @@ import {
   ScrollView,
   ImageSourcePropType,
 } from "react-native";
-import { useNavigation, NavigationProp } from "@react-navigation/native";
+import { useNavigation, NavigationProp, useRoute } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { fetchWeather } from "../services/weatherService";
 import { useDetection } from "../../contexts/DetectionContext";
@@ -97,6 +98,7 @@ export default function MenuAndWidgetPanel({
   children,
 }: MenuAndWidgetPanelProps): React.ReactElement {
   const navigation = useNavigation<MenuNavigationProp>();
+  const route = useRoute();
   const { riskLevel, riskCondition, riskColor } = useDetection(); // Global detection state
   const { notifications, removeNotification } = useRecording(); // Recording notifications
   const [widgetsVisible, setWidgetsVisible] = useState<boolean>(false);
@@ -299,6 +301,10 @@ export default function MenuAndWidgetPanel({
 
   const menuOptions = ["Home", "Records", "Profile", "Settings"];
 
+  // Determine if current route should use gradient
+  const routesWithGradient = ['profile', 'settings', 'realtimer', 'savedr', 'deletedr'];
+  const useGradient = routesWithGradient.includes(route.name.toLowerCase());
+
   return (
     <View style={styles.container}>
       {children}
@@ -327,6 +333,15 @@ export default function MenuAndWidgetPanel({
           },
         ]}
       >
+        {useGradient ? (
+          <LinearGradient
+            colors={['#7F2222', '#E53E3E']}
+            style={StyleSheet.absoluteFillObject}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+          />
+        ) : null}
+        
         <TouchableOpacity
           style={styles.menuHeader}
           onPress={toggleDropdown}
@@ -334,9 +349,10 @@ export default function MenuAndWidgetPanel({
         >
           <Image
             source={menuOpen ? menuExpandedImg : menuClosedImg}
-            style={
-              menuOpen ? styles.burgerIconExpanded : styles.burgerIconClosed
-            }
+            style={[
+              menuOpen ? styles.burgerIconExpanded : styles.burgerIconClosed,
+              useGradient && { tintColor: '#fff' }
+            ]}
             resizeMode="contain"
           />
         </TouchableOpacity>
@@ -360,7 +376,7 @@ export default function MenuAndWidgetPanel({
               ]}
               onPress={() => handleOptionPress(option)}
             >
-              <Text style={styles.menuText}>{option}</Text>
+              <Text style={[styles.menuText, useGradient && { color: '#fff' }]}>{option}</Text>
             </TouchableOpacity>
           ))}
         </Animated.View>
@@ -371,6 +387,18 @@ export default function MenuAndWidgetPanel({
         style={[styles.bottomPanel, { transform: [{ translateY: panelTranslateY }] }]}
         {...panResponder.panHandlers}
       >
+        {useGradient && widgetsVisible ? (
+          <LinearGradient
+            colors={['#7F2222', '#E53E3E']}
+            style={[StyleSheet.absoluteFillObject, {
+              borderTopLeftRadius: 50,
+              borderTopRightRadius: 50,
+            }]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+          />
+        ) : null}
+
         <TouchableOpacity onPress={toggleWidgets} style={styles.arrowButton}>
           <Animated.Image
             source={arrowup}
@@ -378,6 +406,7 @@ export default function MenuAndWidgetPanel({
               width: 50,
               height: 50,
               transform: [{ rotate: arrowRotation }],
+              tintColor: useGradient && widgetsVisible ? '#fff' : undefined,
             }}
             resizeMode="contain"
           />
@@ -588,7 +617,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 35,
     left: 0,
-    backgroundColor: "rgba(217,217,217,0.9)",
+    backgroundColor: "rgba(217,217,217,0.65)",
     borderTopLeftRadius: 0,
     borderBottomLeftRadius: 0,
     overflow: "hidden",
@@ -621,7 +650,7 @@ const styles = StyleSheet.create({
     fontFamily: "AlegreyaSC",
   },
   activeMenuOption: {
-    backgroundColor: "rgba(255, 255, 255, 0.99)",
+    backgroundColor: "rgba(255, 255, 255, 0.65)",
   },
   bottomPanel: {
     position: "absolute",
@@ -629,7 +658,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 750,
-    backgroundColor: "rgba(217, 217, 217, 0.42)",
+    backgroundColor: "rgba(217, 217, 217, 0.65)",
     borderTopLeftRadius: 50,
     borderTopRightRadius: 50,
     alignItems: "center",
