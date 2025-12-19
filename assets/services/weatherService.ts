@@ -36,7 +36,7 @@ export const getWeatherIcon = (iconName: string): NodeRequire => {
   const icons: { [key: string]: NodeRequire } = {
     sunny: require("../image/sunnyday.png"),
     rainy: require("../image/rainy.png"),
-    cloudy: require("../image/cloudy.png"),
+    cloudy: require("../image/CloudyStat.png"),
     windy: require("../image/windy.png"),
     clear: require("../image/clear.png"),
   };

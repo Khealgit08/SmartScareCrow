@@ -424,7 +424,7 @@ export default function AuthScreen(): React.ReactElement {
           onPress={handleGoogleSignIn} 
           disabled={isLoading || !request}
         >
-          <Image source={require("../../assets/image/GoogleGlogo.png")} style={styles.googleIcon} />
+          <Image source={require("../../assets/image/GoogleLogo.png")} style={styles.googleIcon} />
           <Text style={styles.googleText}>Continue with Google</Text>
         </TouchableOpacity>
 
