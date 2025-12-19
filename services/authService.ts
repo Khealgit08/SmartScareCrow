@@ -1,6 +1,7 @@
 // services/authService.ts - REAL API INTEGRATION
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { AxiosError } from 'axios';
+import { getOrCreateSupabaseUser } from './supabaseUserService';
 
 // Real API Configuration
 const API_BASE_URL = 'https://citc-ustpcdo.com/api/v1/';
@@ -111,6 +112,15 @@ class AuthService {
       console.log('***************************************************');
 
       const userData = profileResponse.data;
+
+      const supabaseUser = await getOrCreateSupabaseUser(userData);
+
+      await AsyncStorage.setItem(
+        'SUPABASE_USER_ID',
+        supabaseUser.id
+      );
+
+      console.log('🟢 Supabase User ID:', supabaseUser.id);
 
       // Step 3: Store auth data
       console.log('💾 Step 3: Storing auth data...');

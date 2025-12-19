@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useEffect } from 'react';
 import { View, ActivityIndicator, LogBox } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -13,6 +14,7 @@ import Settings from './assets/screens/Settings';
 import RealtimeR from './assets/screens/Realtimerecord';
 import SavedR from './assets/screens/SavedRecords';
 import DeletedR from './assets/screens/DeletedRecords';
+import { supabase } from './lib/supabase';
 
 const Stack = createNativeStackNavigator();
 
@@ -30,6 +32,13 @@ if (__DEV__) {
 LogBox.ignoreAllLogs(true); // This will suppress ALL LogBox notifications
 
 export default function App(): React.ReactElement {
+  
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      console.log('Session:', data.session);
+    });
+  }, []);
+  
   const [fontsLoaded] = useFonts({
     Alef: require('./assets/fonts/ALEF-REGULAR.ttf'),
     Akshar: require('./assets/fonts/AKSHAR-REGULAR.ttf'),

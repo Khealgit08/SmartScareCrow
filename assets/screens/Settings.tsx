@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { getSettings, saveSettings } from '../../services/settingsService';
 import {
   View,
   Text,
@@ -91,24 +92,77 @@ export default function Settings(): React.ReactElement {
 
   // Load user settings on mount AND when screen comes into focus
   useEffect(() => {
+    const loadUserSettings = async () => {
+      try {
+        const data = await getSettings(); // fetch from Supabase
+        if (data) {
+          setVolumeLevel(data.volumeLevel);
+          setSelectedSoundId(data.selectedSoundId);
+          setAlertSounds(data.alertSounds);
+          setGeoEnabled(data.geoEnabled);
+          setConnectedDevices(data.connectedDevices);
+          setAnchorLocation(data.anchorLocation);
+  
+          // Restart geofencing if enabled
+          if (data.geoEnabled && data.anchorLocation) {
+            restartGeofencing(data.anchorLocation);
+          }
+  
+          console.log('✅ Settings loaded successfully from Supabase', data);
+        } else {
+          console.log('📥 No settings found, using defaults');
+        }
+      } catch (error) {
+        console.error('❌ Error loading settings:', error);
+      }
+    };
+  
     loadUserSettings();
-  }, []);
+  }, []);  
 
   // Reload settings every time the screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
       console.log('⚡ Settings screen focused, reloading settings...');
-      loadUserSettings();
+      getSettings().then(data => {
+        if (data) {
+          setVolumeLevel(data.volumeLevel);
+          setSelectedSoundId(data.selectedSoundId);
+          setAlertSounds(data.alertSounds);
+          setGeoEnabled(data.geoEnabled);
+          setConnectedDevices(data.connectedDevices);
+          setAnchorLocation(data.anchorLocation);
+  
+          if (data.geoEnabled && data.anchorLocation) {
+            restartGeofencing(data.anchorLocation);
+          }
+        }
+      });
     }, [])
   );
+  
 
   // Save settings whenever they change
-  useEffect(() => {
-    if (currentUserId !== null) {
-      saveUserSettings();
+  const handleSave = async () => {
+    try {
+      const settingsToSave = {
+        volumeLevel,
+        selectedSoundId,
+        alertSounds,
+        geoEnabled,
+        connectedDevices,
+        anchorLocation,
+      };
+  
+      await saveSettings(settingsToSave); // Supabase save
+      alert('Settings saved!');
+      console.log('💾 Settings saved:', settingsToSave);
+    } catch (error) {
+      console.error('❌ Error saving settings:', error);
+      alert('Failed to save settings.');
     }
-  }, [volumeLevel, selectedSoundId, alertSounds, geoEnabled, connectedDevices, anchorLocation, currentUserId]);
-
+  };
+  
   const loadUserSettings = async () => {
     try {
       const userData = await authService.getUserData();
@@ -401,7 +455,6 @@ export default function Settings(): React.ReactElement {
       }
 
       if (soundSource) {
-        // Use the current alert volume level (convert percentage to decimal)
         const currentVolume = volumePercentages[volumeLevel] / 100;
         const { sound: newSound } = await Audio.Sound.createAsync(
           soundSource,
