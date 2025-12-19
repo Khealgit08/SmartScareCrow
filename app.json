@@ -30,11 +30,15 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera",
         "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone",
-        "NSLocationWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to access your location"
-      }
+        "NSLocationWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to access your location",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.smartcrow.app"
     },
     "android": {
       "package": "com.smartcrow.app",
+      "versionCode": 1,
+      "intentFilters": [],
       "adaptiveIcon": {
         "foregroundImage": "./assets/image/Picture1.png",
         "backgroundColor": "#E53E3E"
@@ -46,12 +50,19 @@
       },
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION"
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ],
       "edgeToEdgeEnabled": true
     },
     "web": {
       "favicon": "./assets/image/Picture1.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "5e60bdbf-3938-471a-8737-b5dc4c859960"
+      }
     }
   }
 }
