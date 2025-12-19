@@ -8,9 +8,6 @@ import {
   Image,
   Alert,
   ActivityIndicator,
-  Modal,
-  FlatList,
-  Pressable,
   Animated,
 } from "react-native";
 import { useNavigation, NavigationProp } from "@react-navigation/native";
@@ -21,6 +18,7 @@ import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
 import * as AuthSession from "expo-auth-session";
 import { useRecording } from "../../contexts/RecordingContext";
+import { useDetection } from "../../contexts/DetectionContext";
 import { MaterialIcons } from "@expo/vector-icons";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -39,8 +37,12 @@ export default function AuthScreen(): React.ReactElement {
   const [password, setPassword] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const { loadUserRecords } = useRecording();
+  const { startDetection } = useDetection();
   
-  // Error state
+  // Password visibility state
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  
+  // Error state for user-friendly messages
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [showError, setShowError] = useState<boolean>(false);
   const shakeAnimation = useState(new Animated.Value(0))[0];
@@ -51,13 +53,6 @@ export default function AuthScreen(): React.ReactElement {
     scheme: 'smartcrow',
     path: undefined,
   });
-
-  // Log the redirect URI for debugging
-  useEffect(() => {
-    console.log('=================================');
-    console.log('REDIRECT URI:', redirectUri);
-    console.log('=================================');
-  }, [redirectUri]);
 
   // --- GOOGLE AUTH REQUEST ---
   const [request, response, promptAsync] = Google.useAuthRequest({
@@ -71,8 +66,10 @@ export default function AuthScreen(): React.ReactElement {
       if (response?.type === "success") {
         const { authentication } = response;
         const accessToken = authentication?.accessToken ?? authentication?.idToken ?? null;
+        
         if (!accessToken) {
-          Alert.alert("Google Sign-In Failed", "No access token returned from Google.");
+          console.log("Google Sign-In failed: No access token");
+          displayError("Unable to sign in with Google. Please try again.");
           return;
         }
 
@@ -110,6 +107,7 @@ export default function AuthScreen(): React.ReactElement {
             throw new Error("No auth state returned");
           } catch (err: any) {
             const msg = err instanceof Error ? err.message : String(err || "");
+            console.log("Google OAuth error:", msg);
             if (msg.toLowerCase().includes("not found") || msg.toLowerCase().includes("unable to log in")) {
               setActiveTab("signup");
               setEmail(googleProfile.email);
@@ -118,17 +116,18 @@ export default function AuthScreen(): React.ReactElement {
                 "This Google account is not registered with the app. Complete Sign Up to link it."
               );
             } else {
-              Alert.alert("Google Sign-In Error", msg || "Unable to sign in with Google.");
+              displayError("Unable to sign in with Google. Please try again.");
             }
           }
         } catch (err: any) {
-          console.error("Google flow error:", err);
-          Alert.alert("Google Sign-In Error", err instanceof Error ? err.message : "Unknown error");
+          console.log("Google Sign-In error:", err instanceof Error ? err.message : err);
+          displayError("Something went wrong with Google sign-in.");
         } finally {
           setIsLoading(false);
         }
       } else if (response?.type === "error") {
-        Alert.alert("Google Sign-In Cancelled", "Google sign-in has been cancelled or failed.");
+        console.log("Google sign-in was cancelled or failed");
+        displayError("Google sign-in was cancelled.");
       }
     };
 
@@ -171,7 +170,8 @@ export default function AuthScreen(): React.ReactElement {
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
-      displayError("Please enter both ID number and password");
+      console.log("Login validation failed: Missing credentials");
+      displayError("Please enter your ID number and password");
       return;
     }
 
@@ -179,12 +179,21 @@ export default function AuthScreen(): React.ReactElement {
     hideError();
     
     try {
+      console.log("***************************************************");
+      console.log("🔐 Attempting login...");
+      console.log("***************************************************");
       const authState = await authService.login({
         username: username.trim(),
         password: password.trim(),
       });
       
+      console.log("***************************************************");
+      console.log("✅ Login successful!");
+      console.log("***************************************************");
       await loadUserRecords();
+      
+      // Start AI detection after successful login
+      startDetection();
       
       Alert.alert(
         "Welcome!",
@@ -192,8 +201,14 @@ export default function AuthScreen(): React.ReactElement {
         [{ text: "OK", onPress: () => navigation.navigate("home") }]
       );
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Login failed. Please try again.";
-      displayError(errorMessage);
+      // Log the technical error details to console only
+      const technicalError = error instanceof Error ? error.message : "Login failed. Please try again.";
+      console.log("***************************************************");
+      console.log("❌ Login error:", technicalError);
+      console.log("***************************************************");
+      
+      // Show only user-friendly message in UI
+      displayError("Invalid ID number or password. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -201,16 +216,19 @@ export default function AuthScreen(): React.ReactElement {
 
   const handleSignup = async () => {
     if (!email.trim() || !password.trim()) {
+      console.log("Signup validation failed: Missing fields");
       displayError("Please fill in all fields");
       return;
     }
 
     if (!email.includes("@")) {
+      console.log("Signup validation failed: Invalid email");
       displayError("Please enter a valid email address");
       return;
     }
 
     if (password.length < 6) {
+      console.log("Signup validation failed: Password too short");
       displayError("Password must be at least 6 characters");
       return;
     }
@@ -219,6 +237,9 @@ export default function AuthScreen(): React.ReactElement {
     hideError();
     
     try {
+      console.log("***************************************************");
+      console.log("📝 Attempting signup...");
+      console.log("***************************************************");
       const emailName = email.split("@")[0];
       const authState = await authService.signup({
         email: email.trim(),
@@ -227,7 +248,13 @@ export default function AuthScreen(): React.ReactElement {
         last_name: "User",
       });
 
+      console.log("***************************************************");
+      console.log("✅ Signup successful!");
+      console.log("***************************************************");
       await loadUserRecords();
+      
+      // Start AI detection after successful signup
+      startDetection();
 
       Alert.alert(
         "Account Created!",
@@ -235,8 +262,14 @@ export default function AuthScreen(): React.ReactElement {
         [{ text: "Get Started", onPress: () => navigation.navigate("home") }]
       );
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Signup failed. Please try again.";
-      displayError(errorMessage);
+      // Log the technical error details to console only
+      const technicalError = error instanceof Error ? error.message : "Signup failed. Please try again.";
+      console.log("***************************************************");
+      console.log("❌ Signup error:", technicalError);
+      console.log("***************************************************");
+      
+      // Show only user-friendly message in UI
+      displayError("Unable to create account. Email may already be in use.");
     } finally {
       setIsLoading(false);
     }
@@ -247,8 +280,8 @@ export default function AuthScreen(): React.ReactElement {
       setIsLoading(true);
       await promptAsync();
     } catch (err) {
-      console.error("promptAsync error:", err);
-      Alert.alert("Error", "Failed to start Google sign-in.");
+      console.log("Failed to start Google sign-in:", err);
+      displayError("Unable to start Google sign-in.");
       setIsLoading(false);
     }
   };
@@ -311,65 +344,77 @@ export default function AuthScreen(): React.ReactElement {
           <>
             <TextInput
               placeholder="ID Number"
-              style={[styles.input, showError && !username.trim() && styles.inputError]}
+              style={styles.input}
               underlineColorAndroid="transparent"
               placeholderTextColor="#999"
               value={username}
-              onChangeText={(text) => {
-                setUsername(text);
-                if (showError) hideError();
-              }}
+              onChangeText={setUsername}
               autoCapitalize="none"
               keyboardType="default"
               editable={!isLoading}
             />
 
-            <TextInput
-              placeholder="Password"
-              secureTextEntry
-              style={[styles.input, showError && !password.trim() && styles.inputError]}
-              underlineColorAndroid="transparent"
-              placeholderTextColor="#999"
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                if (showError) hideError();
-              }}
-              autoCapitalize="none"
-              editable={!isLoading}
-            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                placeholder="Password"
+                secureTextEntry={!showPassword}
+                style={styles.passwordInput}
+                underlineColorAndroid="transparent"
+                placeholderTextColor="#999"
+                value={password}
+                onChangeText={setPassword}
+                autoCapitalize="none"
+                editable={!isLoading}
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <MaterialIcons
+                  name={showPassword ? "visibility" : "visibility-off"}
+                  size={22}
+                  color="#666"
+                />
+              </TouchableOpacity>
+            </View>
           </>
         ) : (
           <>
             <TextInput
               placeholder="Email Address"
-              style={[styles.input, showError && !email.trim() && styles.inputError]}
+              style={styles.input}
               underlineColorAndroid="transparent"
               placeholderTextColor="#999"
               value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                if (showError) hideError();
-              }}
+              onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
               editable={!isLoading}
             />
 
-            <TextInput
-              placeholder="Password"
-              secureTextEntry
-              style={[styles.input, showError && !password.trim() && styles.inputError]}
-              underlineColorAndroid="transparent"
-              placeholderTextColor="#999"
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                if (showError) hideError();
-              }}
-              autoCapitalize="none"
-              editable={!isLoading}
-            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                placeholder="Password"
+                secureTextEntry={!showPassword}
+                style={styles.passwordInput}
+                underlineColorAndroid="transparent"
+                placeholderTextColor="#999"
+                value={password}
+                onChangeText={setPassword}
+                autoCapitalize="none"
+                editable={!isLoading}
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <MaterialIcons
+                  name={showPassword ? "visibility" : "visibility-off"}
+                  size={22}
+                  color="#666"
+                />
+              </TouchableOpacity>
+            </View>
           </>
         )}
 
@@ -498,9 +543,27 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
   },
 
-  inputError: {
-    borderColor: "#E53E3E",
+  passwordContainer: {
+    position: 'relative',
+    marginBottom: 12,
+  },
+
+  passwordInput: {
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 10,
+    paddingRight: 45,
+    fontSize: 14,
+    fontFamily: "AlegreyaSC",
     borderWidth: 1,
+    borderColor: "transparent",
+  },
+
+  eyeIcon: {
+    position: 'absolute',
+    right: 12,
+    top: 10,
+    padding: 4,
   },
 
   googleButton: {
@@ -510,6 +573,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 6,
     marginBottom: 15,
+    marginTop: 10,
+    marginHorizontal: 25,
     justifyContent: "center",
   },
 
@@ -527,16 +592,18 @@ const styles = StyleSheet.create({
   },
 
   mainButton: {
+    width: 130,
     backgroundColor: "#fafafa",
     paddingVertical: 8,
     borderRadius: 6,
     alignItems: "center",
-    marginTop: 10,
+    alignSelf: "center",
+    marginTop: 30,
   },
 
   mainButtonText: {
-    fontFamily: "AlegreyaSC",
-    fontWeight: "bold",
+    fontFamily: "AlegreyaSCMedium",
+    fontSize: 16,
     color: "#444",
   },
 

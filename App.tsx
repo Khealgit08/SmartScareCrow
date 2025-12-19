@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, LogBox } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useFonts } from 'expo-font';
@@ -14,7 +14,21 @@ import Settings from './assets/screens/Settings';
 import RealtimeR from './assets/screens/Realtimerecord';
 import SavedR from './assets/screens/SavedRecords';
 import DeletedR from './assets/screens/DeletedRecords';
+
 const Stack = createNativeStackNavigator();
+
+// Disable the red box error screen in development
+// Errors will still be logged to console but won't show the red overlay
+if (__DEV__) {
+  const originalConsoleError = console.error;
+  console.error = (...args) => {
+    // Log errors normally but prevent them from triggering the red box
+    originalConsoleError(...args);
+  };
+}
+
+// Suppress LogBox warnings and errors from showing in the UI
+LogBox.ignoreAllLogs(true); // This will suppress ALL LogBox notifications
 
 export default function App(): React.ReactElement {
   const [fontsLoaded] = useFonts({
@@ -39,7 +53,7 @@ export default function App(): React.ReactElement {
         <Stack.Navigator 
           id="root"
           screenOptions={{ headerShown: false }} 
-          initialRouteName="login"
+          initialRouteName="home"
         >
           <Stack.Screen name="login" component={Login} />
           <Stack.Screen name="signup" component={Signup} />

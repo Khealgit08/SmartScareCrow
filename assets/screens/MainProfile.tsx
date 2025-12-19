@@ -6,6 +6,7 @@ import MenuAndWidgetPanel from "../components/MenuAndWidgetPanel";
 import type { RootStackParamList } from "../../navigation.types";
 import { authService, UserData } from "../../services/authService";
 import * as ImagePicker from "expo-image-picker";
+import { useDetection } from "../../contexts/DetectionContext";
 
 type MainProfileNavigationProp = NavigationProp<RootStackParamList, "profile">;
 
@@ -14,6 +15,7 @@ export default function MainProfileScreen(): React.ReactElement {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
+  const { stopDetection } = useDetection();
 
   useEffect(() => {
     loadUserData();
@@ -55,7 +57,7 @@ export default function MainProfileScreen(): React.ReactElement {
 
       // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ImagePicker.MediaType.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -91,6 +93,10 @@ export default function MainProfileScreen(): React.ReactElement {
           onPress: async () => {
             try {
               const token = await authService.getToken();
+              
+              // Stop AI detection before logging out
+              stopDetection();
+              
               await authService.logout(token || undefined);
               
               // DO NOT clear profile picture - it should persist for this account
@@ -189,6 +195,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 20,
     right: 20,
+    marginTop: 25,
     zIndex: 10,
     padding: 8,
     backgroundColor: 'white',

@@ -557,7 +557,7 @@ export default function MenuAndWidgetPanel({
                 <ScrollView 
                   horizontal={false}
                   showsVerticalScrollIndicator={false}
-                  style={{ maxHeight: 150 }}
+                  style={{ maxHeight: 200 }}
                 >
                   {notifications.length > 0 && notifications.map((notif, index) => (
                     <NotificationBanner

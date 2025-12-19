@@ -24,6 +24,8 @@ interface DetectionContextType {
   
   // Controls
   toggleDetection: () => void;
+  startDetection: () => void;
+  stopDetection: () => void;
   modelReady: boolean;
   
   // Callback for recording captures
@@ -45,7 +47,7 @@ interface DetectionProviderProps {
 }
 
 export const DetectionProvider: React.FC<DetectionProviderProps> = ({ children }) => {
-  const [detectionEnabled, setDetectionEnabled] = useState<boolean>(true); // Auto-enabled
+  const [detectionEnabled, setDetectionEnabled] = useState<boolean>(false); // Disabled by default until login
   const [detections, setDetections] = useState<Detection[]>([]);
   const [hasHuman, setHasHuman] = useState<boolean>(false);
   const [hasPest, setHasPest] = useState<boolean>(false);
@@ -67,7 +69,7 @@ export const DetectionProvider: React.FC<DetectionProviderProps> = ({ children }
       const ready = await initializeDetectionModel();
       setModelReady(ready);
       if (ready) {
-        console.log('✅ Global AI Detection initialized and running');
+        console.log('✅ Global AI Detection model loaded (waiting for user login)');
       }
     };
     loadModel();
@@ -142,7 +144,16 @@ export const DetectionProvider: React.FC<DetectionProviderProps> = ({ children }
 
   // Continuous detection loop
   useEffect(() => {
-    if (!detectionEnabled || !modelReady) return;
+    if (!detectionEnabled || !modelReady) {
+      // Clean up when detection is disabled
+      if (detectionTimerRef.current) {
+        clearInterval(detectionTimerRef.current);
+        detectionTimerRef.current = null;
+      }
+      return;
+    }
+
+    console.log('🤖 AI Detection started');
 
     const runDetection = async () => {
       try {
@@ -196,7 +207,9 @@ export const DetectionProvider: React.FC<DetectionProviderProps> = ({ children }
     return () => {
       if (detectionTimerRef.current) {
         clearInterval(detectionTimerRef.current);
+        detectionTimerRef.current = null;
       }
+      console.log('🛑 AI Detection stopped');
     };
   }, [detectionEnabled, modelReady]);
 
@@ -218,6 +231,28 @@ export const DetectionProvider: React.FC<DetectionProviderProps> = ({ children }
       return;
     }
     setDetectionEnabled(!detectionEnabled);
+    console.log(detectionEnabled ? '🛑 Detection toggled OFF' : '🤖 Detection toggled ON');
+  };
+
+  const startDetection = () => {
+    if (!modelReady) {
+      console.warn('Model Not Ready - AI detection model is still loading...');
+      return;
+    }
+    setDetectionEnabled(true);
+    console.log('🤖 Detection manually started');
+  };
+
+  const stopDetection = () => {
+    setDetectionEnabled(false);
+    // Reset detection state
+    setDetections([]);
+    setHasHuman(false);
+    setHasPest(false);
+    setRiskLevel('LOW');
+    setRiskCondition('No Harm Detected');
+    setRiskColor('#2ABD1D');
+    console.log('🛑 Detection manually stopped');
   };
 
   const setOnObjectDetected = (callback: (objectType: string, imageUri?: string) => void) => {
@@ -233,6 +268,8 @@ export const DetectionProvider: React.FC<DetectionProviderProps> = ({ children }
     riskCondition,
     riskColor,
     toggleDetection,
+    startDetection,
+    stopDetection,
     modelReady,
     setOnObjectDetected,
   };
