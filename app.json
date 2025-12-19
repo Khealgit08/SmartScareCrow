@@ -17,7 +17,6 @@
           "recordAudioAndroid": true
         }
       ],
-      "expo-web-browser",
       "expo-secure-store"
     ],
     "splash": {
